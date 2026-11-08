@@ -1,0 +1,12 @@
+{
+  "name": "meow-cute-video-editor",
+  "version": "3.0.0",
+  "description": "เหมียวน่ารัก 3:4 TikTok Creator Studio",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

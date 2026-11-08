@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>เหมียวน่ารัก — โปรแกรมตัดต่อวิดีโอ 3:4 & ซับคำสำคัญ (Keywords) อัตโนมัติ</title>
+  
+  <!-- APP ICONS & MOBILE HOME SCREEN (Apple iOS & Android PWA) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="เหมียวน่ารัก">
+  <meta name="application-name" content="เหมียวน่ารัก">
+  <meta name="theme-color" content="#141415">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Itim&family=Kanit:wght@500;600;700;800;900&family=Mali:wght@600;700&family=Mitr:wght@500;600;700&family=Prompt:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=3.0">
+</head>
+<body>
+
+  <!-- TOP HEADER BAR (52px, Graphite Studio, 4px Grid) -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3.1-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"/>
+          <path d="M8 14v.5"/><path d="M16 14v.5"/><path d="M11.25 16.25h1.5L12 17l-.75-.75Z"/>
+        </svg>
+      </div>
+      <div class="brand-info">
+        <span class="brand-name">เหมียวน่ารัก</span>
+        <span class="brand-meta">สตูดิโอ 3:4</span>
+      </div>
+    </div>
+
+    <!-- CLIP TABS BAR WITH IMPORT & DELETE (Starts completely empty!) -->
+    <div class="clip-tabs-bar" id="clipTabsBar">
+      <div class="clip-tabs-list" id="clipTabsList" hidden>
+        <!-- Populated dynamically when user uploads videos -->
+      </div>
+
+      <label class="btn-secondary btn-compact" for="fileUploadInput" title="นำเข้าไฟล์วิดีโอเดี่ยว หรือเลือกหลายไฟล์เพื่อรวมเป็น 1 วิดีโอ">
+        <input type="file" id="fileUploadInput" accept="video/*" hidden multiple>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>นำเข้าคลิป</span>
+      </label>
+
+      <button class="btn-secondary btn-compact" id="btnOpenMergerTopbar" title="อัปโหลดหลายวิดีโอย่อยมาจัดเรียงและรวมเป็น 1 วิดีโอเดียว">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="8" height="16" rx="1.5"/><rect x="14" y="4" width="8" height="16" rx="1.5"/><path d="M10 12h4"/></svg>
+        <span class="lbl-desktop">รวมหลายคลิปเป็น 1 วิดีโอ</span>
+        <span class="lbl-mobile">รวมคลิป</span>
+      </button>
+
+      <button class="btn-secondary btn-compact" id="btnAppendClipTopbar" title="เพิ่มวิดีโอย่อยต่อท้ายคลิปที่กำลังตัดต่ออยู่นี้" hidden>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>ต่อคลิปเพิ่ม</span>
+      </button>
+
+      <button class="btn-danger-ghost btn-compact" id="btnDeleteCurrentClip" title="ลบคลิปวิดีโอปัจจุบันออกจากโปรเจกต์" hidden>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>ลบคลิปนี้</span>
+      </button>
+    </div>
+
+    <!-- RIGHT ACTIONS -->
+    <div class="topbar-right">
+      <div class="undo-group">
+        <button class="icon-btn" id="btnUndo" title="ย้อนกลับ (Ctrl+Z)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+        </button>
+        <button class="icon-btn" id="btnRedo" title="ทำซ้ำ (Ctrl+Y)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+        </button>
+        <button class="icon-btn" id="btnResetProject" title="ให้ AI วิเคราะห์และจัดเรียงคลิปนี้ใหม่">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
+      </div>
+
+      <button class="btn-secondary btn-compact" id="btnOpenBackendSettings" title="สถานะการเชื่อมต่อเซิร์ฟเวอร์ AI Backend" style="padding: 4px 8px; font-size: 11px;">
+        <span class="dot-live" style="width:6px;height:6px;background:#10b981;" id="backendDotStatus"></span>
+        <span id="backendStatusLabel">เซิร์ฟเวอร์ AI</span>
+      </button>
+
+      <button class="btn-primary-export" id="btnRenderExport" title="เรนเดอร์และดาวน์โหลดไฟล์ MP4">
+        <span class="dot-live"></span>
+        <span class="lbl-desktop">ส่งออก MP4</span>
+        <span class="lbl-mobile">ส่งออก</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN 3-COLUMN WORKSPACE (100% Viewport Fit, Zero Overlap) -->
+  <main class="workspace">
+
+    <!-- ================= LEFT PANEL (312px) ================= -->
+    <aside class="side-panel panel-left">
+      <div class="panel-tabs panel-tabs-3">
+        <button class="panel-tab active" data-ltab="cuts" id="tabBtnCuts">คัต & AI</button>
+        <button class="panel-tab" data-ltab="zooms" id="tabBtnZooms">ซูมภาพ</button>
+        <button class="panel-tab" data-ltab="sfx" id="tabBtnSfx">เอฟเฟกต์</button>
+      </div>
+
+      <!-- LEFT TAB 1: BACKEND AI DIRECTOR & MANUAL SEGMENTS -->
+      <div class="tab-pane active" id="paneLeftCuts">
+        <div class="sub-box">
+          <div class="box-title-row">
+            <span class="box-title">ระบบตัดต่ออัตโนมัติ (Backend AI)</span>
+            <span class="status-text" id="aiEngineStatus">พร้อมทำงาน</span>
+          </div>
+
+          <div class="field-item" style="margin-bottom:8px;">
+            <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">เลือกรูปแบบซับไตเติล Real-Time (สลับได้ตลอดเวลา):</label>
+            <div class="pill-switch full-width-switch" id="leftSubModeSwitch">
+              <button class="ps-btn active" data-submode="keywords" title="แสดงเฉพาะคำสำคัญ (Keywords) ตรงจังหวะคำพูดเป๊ะ">★ เอาแต่คำสำคัญ (Keywords)</button>
+              <button class="ps-btn" data-submode="full" title="แสดงซับทั้งหมดทุกคำพูด ไฮไลต์ตามเสียงพูด Real-Time">💬 เอาซับทั้งหมด</button>
+            </div>
+          </div>
+
+          <button class="btn-ai-main" id="btnAiFullViral">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <div class="ai-txt">
+              <strong>AI ตัดต่อครบสูตรมือโปร (ไม่ตัดขาดคำพูด)</strong>
+              <small>จัดเฟรม 3:4 + ซูมภาพ 1.25x + ดึงซับคำสำคัญ (Keywords) Real-Time + เอฟเฟกต์เสียง</small>
+            </div>
+          </button>
+
+          <div class="ai-row-2">
+            <button class="btn-secondary btn-compact" id="btnAiTrimSilence" title="จัดแบ่งคัตตามจังหวะประโยคพูดอย่างเป็นธรรมชาติ โดยรักษาเสียงพูดและภาพครบ 100% ไม่ตัดคำพูดขาด">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h12"/></svg>
+              <span>จัดคัตตามประโยคพูด</span>
+            </button>
+            <button class="btn-secondary btn-compact" id="btnAiAutoSub" title="ดึงซับไตเติลตรงจังหวะเสียงพูดระดับ 0.05 วินาที">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+              <span>ดึงซับตรงจังหวะพูด</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Manual Segments Section -->
+        <div class="sub-box grow-box">
+          <div class="box-title-row">
+            <span class="box-title">รายการคัตวิดีโอ (ปรับเวลา/ลบได้เอง)</span>
+            <div style="display:flex;gap:4px;">
+              <button class="btn-xs-white" id="btnOpenMergerLeft" title="นำหลายวิดีโอย่อยมารวมต่อกันเป็น 1 วิดีโอ">+ รวมหลายคลิป</button>
+              <button class="btn-xs-white" id="btnAddSplitLeft">+ หั่นตรงนี้ (S)</button>
+            </div>
+          </div>
+
+          <div class="scroll-area" id="segmentsList">
+            <!-- Populated by app.js -->
+          </div>
+
+          <div class="box-footer-row">
+            <span>ความยาวรวม: <strong class="mono-num" id="totalCutDuration">0.0s</strong></span>
+            <button class="link-btn" id="btnRestoreAllCuts">กู้คืนคัตที่ลบทั้งหมด</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEFT TAB 2: CAMERA ZOOM MANAGER -->
+      <div class="tab-pane" id="paneLeftZooms">
+        <div class="sub-box">
+          <div class="box-title-row">
+            <span class="box-title">เพิ่มซูมภาพตรงหัวอ่าน</span>
+            <span class="mono-num" id="zoomPlayheadTime">0.0s</span>
+          </div>
+          <p class="box-hint">เลื่อนหัวอ่านไปยังจุดที่ต้องการเน้น แล้วกดเพิ่มซูมได้เลย</p>
+
+          <div class="zoom-preset-grid">
+            <button class="btn-secondary btn-compact btn-add-zoom-preset" data-scale="1.15" data-mode="smooth">+ ซูมนุ่มนวล 1.15x</button>
+            <button class="btn-secondary btn-compact btn-add-zoom-preset" data-scale="1.25" data-mode="smooth">+ ซูมธรรมชาติ 1.25x</button>
+            <button class="btn-secondary btn-compact btn-add-zoom-preset" data-scale="1.28" data-mode="punch">+ ซูมกระแทกคำ 1.28x</button>
+            <button class="btn-secondary btn-compact btn-add-zoom-preset" data-scale="1.40" data-mode="punch">+ ซูมระยะใกล้ 1.40x</button>
+          </div>
+        </div>
+
+        <div class="sub-box grow-box">
+          <div class="box-title-row">
+            <span class="box-title">จุดซูมภาพทั้งหมดในคลิป</span>
+            <button class="link-btn danger-link" id="btnClearAllZooms">ลบซูมทั้งหมด</button>
+          </div>
+
+          <div class="scroll-area" id="zoomsListContainer">
+            <!-- Populated by app.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- LEFT TAB 3: EFFECTS (SFX & VFX) + HOOK BANNER & PRODUCT PIN -->
+      <div class="tab-pane" id="paneLeftSfx">
+        <!-- STICKER & REACTION STUDIO -->
+        <div class="sub-box">
+          <div class="box-title-row">
+            <span class="box-title">✨ สติกเกอร์ไวรัล & มาสคอตน่ารัก (จิ้มเพื่อแปะคลิป)</span>
+          </div>
+
+          <!-- Category Subtabs (Clean 3-Column Fit, Zero Overflow) -->
+          <div class="stk-subtab-bar">
+            <button type="button" class="stk-subtab-btn active" data-stk-tab="mascot" title="น้องเหมียว & หมา">🐱 มาสคอต</button>
+            <button type="button" class="stk-subtab-btn" data-stk-tab="viral" title="รีแอคชั่นไวรัล">🔥 รีแอคชั่น</button>
+            <button type="button" class="stk-subtab-btn" data-stk-tab="vfx" title="เอฟเฟกต์ภาพ & เสียง">✨ เอฟเฟกต์</button>
+          </div>
+
+          <!-- Group 1: Mascots -->
+          <div class="stk-pane active" id="stkPaneMascot">
+            <div class="stk-card-grid">
+              <button type="button" class="stk-card-btn" data-sticker="cat_paw" data-label="อุ้งเท้าแมว">
+                <img src="/stickers/cat_paw.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="อุ้งเท้าแมว" loading="lazy" />
+                <span>อุ้งเท้าแมว</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="cat_love" data-label="แมวเลิฟ">
+                <img src="/stickers/cat_love.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="แมวเลิฟ" loading="lazy" />
+                <span>แมวเลิฟ</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="cat_surprise" data-label="แมวตกใจ">
+                <img src="/stickers/cat_surprise.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="แมวตกใจ" loading="lazy" />
+                <span>แมวตกใจ</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="cat_wink" data-label="แมววิ้งค์">
+                <img src="/stickers/cat_wink.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="แมววิ้งค์" loading="lazy" />
+                <span>แมววิ้งค์</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="dog_happy" data-label="หมายิ้ม">
+                <img src="/stickers/dog_happy.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="หมายิ้ม" loading="lazy" />
+                <span>หมายิ้ม</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="dog_cool" data-label="หมาแว่นเท่">
+                <img src="/stickers/dog_cool.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="หมาแว่นเท่" loading="lazy" />
+                <span>หมาแว่นเท่</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Group 2: Viral Reactions (from set (2).json - MIT License) -->
+          <div class="stk-pane" id="stkPaneViral">
+            <div class="stk-card-grid">
+              <button type="button" class="stk-card-btn" data-sticker="fire" data-label="ไฟลุก">
+                <img src="/stickers/fire.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ไฟลุก" loading="lazy" />
+                <span>ไฟลุก</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="mind_blown" data-label="สมองระเบิด">
+                <img src="/stickers/mind_blown.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="สมองระเบิด" loading="lazy" />
+                <span>สมองระเบิด</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="hundred" data-label="เต็มร้อย">
+                <img src="/stickers/hundred.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="เต็มร้อย" loading="lazy" />
+                <span>เต็มร้อย</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="rocket" data-label="จรวดพุ่ง">
+                <img src="/stickers/rocket.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="จรวดพุ่ง" loading="lazy" />
+                <span>จรวดพุ่ง</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="sparkles" data-label="ประกายวิ้ง">
+                <img src="/stickers/sparkles.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ประกายวิ้ง" loading="lazy" />
+                <span>ประกายวิ้ง</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="heart" data-label="หัวใจ">
+                <img src="/stickers/heart.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="หัวใจ" loading="lazy" />
+                <span>หัวใจ</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="star_struck" data-label="ตาวาว">
+                <img src="/stickers/star_struck.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ตาวาว" loading="lazy" />
+                <span>ตาวาว</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="party" data-label="ปาร์ตี้">
+                <img src="/stickers/party.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ปาร์ตี้" loading="lazy" />
+                <span>ปาร์ตี้</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="eyes" data-label="ตาโต">
+                <img src="/stickers/eyes.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ตาโต" loading="lazy" />
+                <span>ตาโต</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="money" data-label="เงินทอง">
+                <img src="/stickers/money.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="เงินทอง" loading="lazy" />
+                <span>เงินทอง</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="light_bulb" data-label="ไอเดีย">
+                <img src="/stickers/light_bulb.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ไอเดีย" loading="lazy" />
+                <span>ไอเดีย</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="warning" data-label="เตือน">
+                <img src="/stickers/warning.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="เตือน" loading="lazy" />
+                <span>คำเตือน</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="skull" data-label="ฮาจะตาย">
+                <img src="/stickers/skull.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ฮาจะตาย" loading="lazy" />
+                <span>ฮาจะตาย</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="thumbs_up" data-label="ไลค์">
+                <img src="/stickers/thumbs_up.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ไลค์" loading="lazy" />
+                <span>ไลค์เลย</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="muscle" data-label="สตรอง">
+                <img src="/stickers/muscle.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="สตรอง" loading="lazy" />
+                <span>สตรอง</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="high_voltage" data-label="สายฟ้า">
+                <img src="/stickers/high_voltage.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="สายฟ้า" loading="lazy" />
+                <span>สายฟ้า</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="chart_up" data-label="กราฟพุ่ง">
+                <img src="/stickers/chart_up.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="กราฟพุ่ง" loading="lazy" />
+                <span>กราฟพุ่ง</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="robot" data-label="AI โรบอท">
+                <img src="/stickers/robot.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="AI โรบอท" loading="lazy" />
+                <span>AI โรบอท</span>
+              </button>
+              <button type="button" class="stk-card-btn" data-sticker="cool" data-label="สุดคูล">
+                <img src="/stickers/cool.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="สุดคูล" loading="lazy" />
+                <span>สุดคูล</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Group 3: Visual Effects & SFX -->
+          <div class="stk-pane" id="stkPaneVfx">
+            <div class="sfx-pad-grid">
+              <button type="button" class="sfx-card-btn" data-vfx="warm_glow">
+                <span class="sfx-dot" style="background:#ff7a00"></span>
+                <div><strong>ออร่าผิวใส</strong><small>แสงนุ่มละมุน 3.0s</small></div>
+              </button>
+              <button type="button" class="sfx-card-btn" data-vfx="flash">
+                <span class="sfx-dot" style="background:#ffffff"></span>
+                <div><strong>แฟลชขาว</strong><small>เปลี่ยนฉากกระชับ 0.35s</small></div>
+              </button>
+              <button type="button" class="sfx-card-btn" data-vfx="cyber_glow">
+                <span class="sfx-dot" style="background:#4df0ff"></span>
+                <div><strong>นีออนโกลว์</strong><small>แสงไซเบอร์คูล 2.5s</small></div>
+              </button>
+              <button type="button" class="sfx-card-btn" data-vfx="vignette_dark">
+                <span class="sfx-dot" style="background:#202025"></span>
+                <div><strong>ขอบมืดโฟกัส</strong><small>ดึงสายตาสู่ตรงกลาง</small></div>
+              </button>
+              <button type="button" class="sfx-card-btn" data-vfx="heart_burst">
+                <span class="sfx-dot" style="background:#ff3366"></span>
+                <div><strong>หัวใจกระจาย</strong><small>ละอองรักป้ายยา 2.0s</small></div>
+              </button>
+              <button type="button" class="sfx-card-btn" data-vfx="sparkle_dust">
+                <span class="sfx-dot" style="background:#ffe600"></span>
+                <div><strong>ละอองดาววิ้ง</strong><small>ประกายระยิบระยับ 2.5s</small></div>
+              </button>
+              <button type="button" class="sfx-card-btn" data-sfx="pop">
+                <span class="sfx-dot" style="background:#ededed"></span>
+                <div><strong>เสียงป๊อป</strong><small>จังหวะคำเน้น</small></div>
+              </button>
+              <button type="button" class="sfx-card-btn" data-sfx="sparkle">
+                <span class="sfx-dot" style="background:#ffe600"></span>
+                <div><strong>เสียงวิ้งวับ</strong><small>ป้ายยาสินค้า</small></div>
+              </button>
+              <button type="button" class="sfx-card-btn" data-sfx="shutter">
+                <span class="sfx-dot" style="background:#4df0ff"></span>
+                <div><strong>เสียงชัตเตอร์</strong><small>เปลี่ยนมุมกล้อง</small></div>
+              </button>
+              <button type="button" class="sfx-card-btn" data-sfx="meow">
+                <span class="sfx-dot" style="background:#ff5a96"></span>
+                <div><strong>เสียงเหมียว</strong><small>คิ้วท์ๆ น่ารัก</small></div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-box grow-box">
+          <div class="box-title-row">
+            <span class="box-title">รายการเอฟเฟกต์ & สติกเกอร์ในคลิป</span>
+            <button class="link-btn danger-link" id="btnClearAllEffects">ลบทั้งหมด</button>
+          </div>
+
+          <div class="scroll-area" id="effectsListContainer">
+            <!-- Populated by app.js -->
+          </div>
+        </div>
+
+        <div class="sub-box">
+          <div class="box-title-row">
+            <span class="box-title">พาดหัวด้านบน & ป้ายพิกัดสินค้า</span>
+          </div>
+          <div class="form-stack">
+            <div class="field-item">
+              <label>พาดหัวด้านบน (ลบข้อความออกเพื่อปิด):</label>
+              <input type="text" id="inputHookBanner" class="inp-field" placeholder="พิมพ์ข้อความพาดหัวด้านบน">
+            </div>
+            <div class="field-row-2">
+              <div class="field-item">
+                <label>ชื่อสินค้ามุมซ้ายบน:</label>
+                <input type="text" id="inputPinName" class="inp-field" placeholder="ชื่อสินค้า">
+              </div>
+              <div class="field-item">
+                <label>ป้ายราคา/พิกัด:</label>
+                <input type="text" id="inputPinPrice" class="inp-field" placeholder="ป้ายราคา">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ================= CENTER STAGE (Video Monitor & 4-Track Timeline) ================= -->
+    <section class="center-stage">
+
+      <!-- SINGLE-LINE MONITOR TOOLBAR -->
+      <div class="monitor-bar">
+        <div class="mbar-group">
+          <span class="mbar-label">อัตราส่วน</span>
+          <div class="pill-switch" id="ratioSelector">
+            <button class="ps-btn active" data-ratio="3:4">3:4 TikTok</button>
+            <button class="ps-btn" data-ratio="9:16">9:16</button>
+            <button class="ps-btn" data-ratio="1:1">1:1</button>
+            <button class="ps-btn" data-ratio="16:9">16:9</button>
+          </div>
+        </div>
+
+        <div class="mbar-group">
+          <span class="mbar-label">การจัดเฟรม</span>
+          <div class="pill-switch" id="fitModeSelector">
+            <button class="ps-btn active" data-fit="fill">เต็มจอ (Fill)</button>
+            <button class="ps-btn" data-fit="fit">ขอบเบลอ (Fit)</button>
+          </div>
+        </div>
+
+        <div class="mbar-group">
+          <span class="mbar-label">ระดับภาพแนวตั้ง</span>
+          <input type="range" id="sliderCropY" min="0" max="100" value="30" class="clean-slider">
+          <span class="mono-num" id="valCropY">30%</span>
+        </div>
+      </div>
+
+      <!-- VIDEO PREVIEW VIEWPORT -->
+      <div class="viewport-area" id="viewportArea">
+        <div class="canvas-holder ratio-3-4" id="canvasFrame">
+          <canvas id="previewCanvas" width="720" height="960"></canvas>
+          <video id="sourceVideo" playsinline preload="auto" crossorigin="anonymous"></video>
+        </div>
+
+        <!-- Clean Empty Startup Dropzone (Shown when no video is uploaded yet) -->
+        <div class="empty-clip-state" id="emptyClipState">
+          <div class="empty-box" id="uploadDropzoneBox">
+            <div class="dropzone-icon">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <h3 id="emptyStateTitle">อัปโหลดวิดีโอเพื่อเริ่มตัดต่อ</h3>
+            <p id="emptyStateDesc">ลากไฟล์วิดีโอ (MP4, MOV, WebM) มาวางในกรอบนี้ หรือคลิกปุ่มด้านล่าง ระบบ AI เหมียวน่ารัก จะจัดเฟรม 3:4 ซูมภาพ ดึงซับคำสำคัญ (Keywords) ตรงจังหวะเสียงพูด Real-Time และใส่เอฟเฟกต์ให้อัตโนมัติ โดยรักษาเสียงพูดต่อเนื่อง 100% ไม่ตัดคำพูดขาดออกจากกัน</p>
+            <div style="width:100%;max-width:340px;margin:4px auto 10px;">
+              <div style="font-size:11px;color:var(--text-secondary);margin-bottom:5px;">เลือกรูปแบบซับไตเติลที่ต้องการ (เปลี่ยนทีหลังได้ 1 คลิก):</div>
+              <div class="pill-switch full-width-switch" id="dropzoneSubModeSwitch">
+                <button type="button" class="ps-btn active" data-submode="keywords">★ เอาแต่คำสำคัญ (Keywords)</button>
+                <button type="button" class="ps-btn" data-submode="full">💬 เอาซับทั้งหมด (Real-Time)</button>
+              </div>
+            </div>
+            <div class="empty-actions" style="flex-wrap:wrap;">
+              <label class="btn-primary-export btn-lg-pad" for="fileUploadInput">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                <span>เลือกไฟล์วิดีโอจากเครื่อง</span>
+              </label>
+              <button type="button" class="btn-secondary btn-lg-pad" id="btnOpenMergerDropzone">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="8" height="16" rx="1.5"/><rect x="14" y="4" width="8" height="16" rx="1.5"/><path d="M10 12h4"/></svg>
+                <span>รวมหลายคลิปย่อยเป็น 1 วิดีโอ</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SINGLE-LINE TRANSPORT & QUICK EDIT BAR -->
+      <div class="transport-bar">
+        <div class="tp-left">
+          <button class="tp-step" id="btnStepBack" title="ถอย 0.1 วินาที (←)">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+          </button>
+          <button class="tp-play" id="btnPlayPause" title="เล่น / หยุด (Spacebar)">
+            <span id="playIcon">▶</span>
+          </button>
+          <button class="tp-step" id="btnStepForward" title="เดินหน้า 0.1 วินาที (→)">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+          </button>
+          <div class="tp-time">
+            <span id="uiTimeCur">00:00.0</span> / <span id="uiTimeTotal">00:00.0</span>
+          </div>
+        </div>
+
+        <div class="tp-center">
+          <button class="tp-tool" id="btnSplitAtPlayhead" title="หั่นแยกคลิปตรงหัวอ่าน (S)">หั่นคลิป <kbd>S</kbd></button>
+          <button class="tp-tool" id="btnAddZoomAtPlayhead" title="เพิ่มซูมภาพตรงหัวอ่าน (Z)">+ซูมภาพ <kbd>Z</kbd></button>
+          <button class="tp-tool" id="btnAddSubAtPlayhead" title="เพิ่มซับไตเติลตรงหัวอ่าน (C)">+ซับ <kbd>C</kbd></button>
+          <button class="tp-tool tp-tool-del" id="btnDeleteSelectedSeg" title="ลบคัตที่เลือก (Del)">ลบคัต <kbd>Del</kbd></button>
+        </div>
+
+        <div class="tp-right">
+          <button class="tp-sfx" data-sfx="pop" title="วางเสียงป๊อปตรงหัวอ่าน">ป๊อป</button>
+          <button class="tp-sfx" data-sfx="sparkle" title="วางเสียงวิ้งวับตรงหัวอ่าน">วิ้งวับ</button>
+          <button class="tp-sfx" data-sfx="shutter" title="วางเสียงชัตเตอร์ตรงหัวอ่าน">ชัตเตอร์</button>
+          <button class="tp-sfx" data-sfx="meow" title="วางเสียงเหมียวตรงหัวอ่าน">เหมียว</button>
+        </div>
+      </div>
+
+      <!-- MULTI-TRACK TIMELINE -->
+      <div class="nle-timeline" id="nleTimeline">
+        <div class="timeline-ruler" id="timelineRuler"></div>
+        <div class="timeline-tracks-area" id="timelineTracksArea">
+          <div class="nle-track">
+            <div class="track-header">คัตวิดีโอ</div>
+            <div class="track-lane" id="laneSegments"></div>
+          </div>
+          <div class="nle-track">
+            <div class="track-header">ซูมภาพ</div>
+            <div class="track-lane" id="laneZooms"></div>
+          </div>
+          <div class="nle-track">
+            <div class="track-header">ซับคำสำคัญ</div>
+            <div class="track-lane" id="laneSubtitles"></div>
+          </div>
+          <div class="nle-track">
+            <div class="track-header">เอฟเฟกต์</div>
+            <div class="track-lane" id="laneSfx"></div>
+          </div>
+          <div class="nle-playhead" id="nlePlayhead">
+            <div class="playhead-cap"></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- MOBILE BOTTOM NAVIGATION (Shown only on Mobile screens <= 768px) -->
+    <nav class="mobile-tool-nav" id="mobileToolNav">
+      <button type="button" class="mtab-btn active" data-msection="cuts" title="คัต & AI">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+        <span>คัต & AI</span>
+      </button>
+      <button type="button" class="mtab-btn" data-msection="zooms" title="ซูมภาพ">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        <span>ซูมภาพ</span>
+      </button>
+      <button type="button" class="mtab-btn" data-msection="subs" title="ซับคำสำคัญ">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="14" y2="13"/></svg>
+        <span>ซับคำสำคัญ</span>
+      </button>
+      <button type="button" class="mtab-btn" data-msection="style" title="ฟอนต์ไทย & สี">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24"/></svg>
+        <span>ฟอนต์ & สี</span>
+      </button>
+      <button type="button" class="mtab-btn" data-msection="sfx" title="เอฟเฟกต์">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        <span>เอฟเฟกต์</span>
+      </button>
+    </nav>
+
+    <!-- ================= RIGHT PANEL (372px) ================= -->
+    <aside class="side-panel panel-right">
+      <div class="panel-tabs">
+        <button class="panel-tab active" data-rtab="subs" id="tabBtnSubs">ซับคำสำคัญ & สไตล์</button>
+        <button class="panel-tab" data-rtab="style" id="tabBtnStyle">ฟอนต์ไทย & สไตล์สี</button>
+      </div>
+
+      <!-- RIGHT TAB 1: KEYWORD-ONLY FILTER, SUBTITLE ZOOM & REAL-TIME EDITOR -->
+      <div class="tab-pane active" id="paneRightSubs">
+
+        <div class="sub-box keyword-mode-bar">
+          <div class="box-title-row">
+            <span class="box-title">เลือกโหมดซับไตเติล (Real-Time ตรงคำพูด)</span>
+            <button class="btn-xs-white" id="btnFilterOnlyKeywordsAll" title="ตัดคำฟุ่มเฟือยออกทั้งหมด เหลือเฉพาะคำสำคัญดึงดูดสายตา">คัดเฉพาะคำสำคัญ</button>
+          </div>
+          <div class="pill-switch full-width-switch" id="subtitleModeSwitch">
+            <button class="ps-btn active" data-submode="keywords">★ เอาแต่คำสำคัญ (Keywords)</button>
+            <button class="ps-btn" data-submode="full">💬 เอาซับทั้งหมด (Real-Time)</button>
+          </div>
+        </div>
+
+        <div class="sub-box active-word-box">
+          <div class="box-title-row">
+            <span class="box-title">แก้ไขซับปัจจุบัน & ตั้งค่าซูมซับ</span>
+            <div class="sub-time-editor">
+              <input type="number" step="0.05" min="0" id="inpActiveSubStart" class="num-input-xs" title="เวลาเริ่มซับ (วินาที)">
+              <span>ถึง</span>
+              <input type="number" step="0.05" min="0.1" id="inpActiveSubEnd" class="num-input-xs" title="เวลาจบซับ (วินาที)">
+              <span>s</span>
+            </div>
+          </div>
+
+          <input type="text" id="inputActiveSubText" class="inp-sub-main" placeholder="พิมพ์ข้อความซับ (ใส่ *คำสำคัญ* หรือคลิกปุ่มคำด้านล่าง)">
+
+          <div class="sub-zoom-control-row">
+            <span class="sz-label">ซูมซับบรรทัดนี้:</span>
+            <div class="sz-buttons" id="activeSubZoomGroup">
+              <button type="button" class="sz-btn" data-subzoom="1.0" title="ลบซูมซับ (แสดงซับนิ่ง)">ปิด (1x)</button>
+              <button type="button" class="sz-btn" data-subzoom="1.18" title="ใส่ซูมซับเด้งนุ่มนวล">นุ่มนวล 1.18x</button>
+              <button type="button" class="sz-btn active" data-subzoom="1.28" title="ใส่ซูมซับคำสำคัญมาตรฐาน">เด้งชัด 1.28x</button>
+              <button type="button" class="sz-btn" data-subzoom="1.40" title="ใส่ซูมซับใหญ่พิเศษ">ใหญ่ 1.40x</button>
+            </div>
+          </div>
+
+          <div class="chips-area">
+            <div class="chips-top-bar">
+              <span>คลิกคำเพื่อตั้งเป็น <strong>คำสำคัญ (Keywords)</strong>:</span>
+              <div class="chips-actions">
+                <button type="button" class="btn-chip-action" id="btnKeepOnlyStarredInLine" title="ลบคำทั่วไปในบรรทัดนี้ออก เหลือเฉพาะคำสำคัญ">เหลือเฉพาะคำสำคัญ</button>
+                <label class="chk-pill">
+                  <input type="checkbox" id="chkUseKeywordPill" checked>
+                  <span>กรอบสี</span>
+                </label>
+              </div>
+            </div>
+            <div class="word-chips-wrap" id="wordChipsContainer">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-box grow-box">
+          <div class="box-title-row">
+            <span class="box-title">รายการซับทั้งหมด (<span id="subCountLabel">0</span> จังหวะ)</span>
+            <div class="row-actions-group">
+              <button class="btn-chip-action" id="btnToggleAllSubZoom" title="เปิดหรือปิดซูมซับทุกบรรทัดพร้อมกัน">สลับซูมซับทั้งหมด</button>
+              <button class="btn-xs-white" id="btnAddNewSubLine">+ เพิ่มซับ</button>
+            </div>
+          </div>
+
+          <div class="scroll-area" id="subtitleListScroll">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT TAB 2: TYPOGRAPHY & COLOR CUSTOMIZER -->
+      <div class="tab-pane" id="paneRightStyle">
+        <div class="sub-box">
+          <div class="box-title-row">
+            <span class="box-title">ฟอนต์ภาษาไทยสำหรับซับไตเติล</span>
+          </div>
+          <div class="font-cards-stack" id="fontSelectorGrid">
+            <button class="font-option-card active" data-font="Kanit" style="font-family:'Kanit',sans-serif;font-weight:800;">
+              <div><strong>Kanit ExtraBold</strong><small>ตัวหนาชัด อ่านง่ายบนมือถือ</small></div>
+              <span class="sample-th">ตัวหอมมาก</span>
+            </button>
+            <button class="font-option-card" data-font="Mitr" style="font-family:'Mitr',sans-serif;font-weight:600;">
+              <div><strong>Mitr Bold</strong><small>หัวกลมละมุน สไตล์รีวิวบิวตี้</small></div>
+              <span class="sample-th">น่ารักสุดๆ</span>
+            </button>
+            <button class="font-option-card" data-font="Prompt" style="font-family:'Prompt',sans-serif;font-weight:800;">
+              <div><strong>Prompt ExtraBold</strong><small>เรียบคม ทันสมัย</small></div>
+              <span class="sample-th">หน้าไบร์ทขึ้น</span>
+            </button>
+            <button class="font-option-card" data-font="Mali" style="font-family:'Mali',sans-serif;font-weight:700;">
+              <div><strong>Mali Bold</strong><small>ลายมือน่ารัก สไตล์ Vlog</small></div>
+              <span class="sample-th">ไปเรียนกัน</span>
+            </button>
+            <button class="font-option-card" data-font="Itim" style="font-family:'Itim',sans-serif;">
+              <div><strong>Itim Regular</strong><small>ตัวอักษรสบายตา เป็นกันเอง</small></div>
+              <span class="sample-th">อร่อยมาก</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="sub-box grow-box">
+          <div class="box-title-row">
+            <span class="box-title">สีไฮไลต์คำสำคัญ (Keywords) & ขนาดซับ</span>
+          </div>
+          <div class="preset-buttons-list" id="stylePresetSelector">
+            <button class="preset-btn active" data-preset="meowmaew_pink" data-color="#FF5A96">
+              <span class="swatch-lg" style="background:#FF5A96"></span> ชมพูโรสพิงค์ (#FF5A96)
+            </button>
+            <button class="preset-btn" data-preset="hormozi_yellow" data-color="#FFE600">
+              <span class="swatch-lg" style="background:#FFE600"></span> เหลืองไฮไลต์ (#FFE600)
+            </button>
+            <button class="preset-btn" data-preset="nivea_orange" data-color="#FF7A00">
+              <span class="swatch-lg" style="background:#FF7A00"></span> ส้มคอรัล (#FF7A00)
+            </button>
+            <button class="preset-btn" data-preset="sky_mint" data-color="#4DF0FF">
+              <span class="swatch-lg" style="background:#4DF0FF"></span> ฟ้าสกายมิ้นต์ (#4DF0FF)
+            </button>
+            <button class="preset-btn" data-preset="mono_swiss" data-color="#FFFFFF">
+              <span class="swatch-lg" style="background:#FFFFFF"></span> ขาวมินิมอล (#FFFFFF)
+            </button>
+          </div>
+
+          <div class="style-sliders-box">
+            <div class="s-row">
+              <label>ขนาดตัวอักษรซับ: <strong class="mono-num" id="valFontSize">44px</strong></label>
+              <input type="range" id="sliderFontSize" min="28" max="62" value="44" class="clean-slider full-w">
+            </div>
+            <div class="s-row">
+              <label>ตำแหน่งความสูงซับบนจอ: <strong class="mono-num" id="valSubY">83%</strong></label>
+              <input type="range" id="sliderSubY" min="55" max="92" value="83" class="clean-slider full-w">
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- MULTI-CLIP MERGER STUDIO MODAL (รวมหลายวิดีโอย่อยเป็น 1 วิดีโอ) -->
+  <div class="modal-backdrop" id="multiClipMergerModal" hidden>
+    <div class="merger-modal-box" id="mergerModalBox">
+      <div class="merger-header">
+        <div>
+          <h3>รวมหลายวิดีโอย่อยเป็น 1 วิดีโอ (Multi-Clip Merger Studio)</h3>
+          <p>อัปโหลดหลายคลิปย่อย จัดเรียงลำดับ ตั้งเวลาเริ่ม-จบของแต่ละคลิป แล้วรวมเป็นวิดีโอเดียวพร้อมตัดต่อ AI อัตโนมัติ</p>
+        </div>
+        <button type="button" class="icon-btn" id="btnCloseMergerModal" title="ปิดหน้าต่าง">✕</button>
+      </div>
+
+      <div class="merger-toolbar">
+        <div class="merger-toolbar-left">
+          <label class="btn-primary-export btn-compact" for="mergerFileInput" style="cursor:pointer;">
+            <input type="file" id="mergerFileInput" accept="video/*" hidden multiple>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            <span>+ เพิ่มคลิปวิดีโอย่อยจากเครื่อง (เลือกหลายไฟล์ได้)</span>
+          </label>
+          <button type="button" class="btn-secondary btn-compact" id="btnAddExistingTabsToMerger" title="ดึงคลิปที่เปิดอยู่ในแถบด้านบนเข้ามารวมด้วย">
+            <span>+ ดึงคลิปในโปรเจกต์มารวม</span>
+          </button>
+          <button type="button" class="btn-danger-ghost btn-compact" id="btnClearMergerList" title="ล้างรายการคลิปย่อยทั้งหมด">
+            <span>ล้างรายการ</span>
+          </button>
+        </div>
+        <div class="merger-summary-pill">
+          <span>จำนวน: <strong class="mono-num" id="mergerClipCount">0</strong> คลิป</span>
+          <span>•</span>
+          <span>เวลารวม: <strong class="mono-num" id="mergerTotalDur">0.0s</strong></span>
+        </div>
+      </div>
+
+      <div class="merger-list-container" id="mergerClipsList">
+        <!-- Populated dynamically by app.js -->
+      </div>
+
+      <div class="merger-options-bar">
+        <div class="merger-opt-group">
+          <span class="merger-opt-label">รูปแบบซับไตเติลหลังรวมคลิป:</span>
+          <div class="pill-switch" id="mergerSubModeSwitch">
+            <button type="button" class="ps-btn active" data-submode="keywords">★ เอาแต่คำสำคัญ (Keywords)</button>
+            <button type="button" class="ps-btn" data-submode="full">💬 เอาซับทั้งหมด (Real-Time)</button>
+          </div>
+        </div>
+        <div class="merger-checks-row">
+          <label class="chk-pill">
+            <input type="checkbox" id="chkMergerAutoAi" checked>
+            <span>ให้ AI จัดเฟรม 3:4 + ซูมภาพ + ดึงซับตรงคำพูด Real-Time โดยรักษาเสียงพูดต่อเนื่อง 100% ไม่ตัดคำขาด</span>
+          </label>
+          <label class="chk-pill">
+            <input type="checkbox" id="chkMergerTransitions" checked>
+            <span>ใส่เอฟเฟกต์เสียงชัตเตอร์ & แฟลชเปลี่ยนฉากตรงรอยต่อระหว่างคลิปอัตโนมัติ</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="merger-footer">
+        <button type="button" class="btn-secondary btn-compact" id="btnImportSeparateTabs" title="นำเข้าแต่ละคลิปแยกเป็นคนละแท็บแทนการรวมเป็นวิดีโอเดียว">
+          นำเข้าแยกเป็นคนละแท็บ
+        </button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="status-text" id="mergerStatusText">พร้อมรวมคลิป</span>
+          <button type="button" class="btn-primary-export btn-lg-pad" id="btnExecuteMergeClips">
+            <span class="dot-live"></span>
+            <span>รวมทุกคลิปเป็น 1 วิดีโอ + ตัดต่อ AI ทันที</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RENDER PROGRESS MODAL -->
+  <div class="modal-backdrop" id="renderModal" hidden>
+    <div class="modal-box">
+      <div class="spinner"></div>
+      <h3>กำลังเรนเดอร์วิดีโอ MP4 (3:4)</h3>
+      <p>ระบบกำลังประมวลผลคัตวิดีโอ ซูมภาพ ซับคำสำคัญ (Keywords) และผสมเสียงลงไฟล์ MP4...</p>
+    </div>
+  </div>
+
+  <!-- CLOUD BACKEND CONNECTION MODAL (For Netlify / Custom Cloud Hosting) -->
+  <div class="modal-backdrop" id="backendConnectModal" hidden>
+    <div class="modal-box" style="max-width: 480px; text-align: left;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="margin:0; font-size:16px;">☁️ ตั้งค่าเซิร์ฟเวอร์ AI Backend</h3>
+        <button type="button" class="icon-btn" id="btnCloseBackendModal" style="font-size:16px;">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+        ระบบตรวจพบว่ากำลังทำงานบน Netlify / โฮสต์ภายนอก สำหรับการประมวลผลตัดต่อด้วย AI และการเรนเดอร์วิดีโอ 3:4 จำเป็นต้องเชื่อมต่อกับเซิร์ฟเวอร์ประมวลผล (Backend Node.js + Python)
+      </p>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:5px;">ระบุ URL ของ Backend Server (เช่น Render, Railway หรือ Cloudflare Tunnel):</label>
+        <input type="url" id="inpBackendUrl" class="inp-sub-main" placeholder="https://your-backend.onrender.com" style="width:100%; box-sizing:border-box; font-size:13px;">
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button type="button" class="btn-secondary btn-compact" id="btnTestBackendConnection">ทดสอบการเชื่อมต่อ</button>
+        <button type="button" class="btn-primary-export btn-compact" id="btnSaveBackendUrl">บันทึกและเริ่มใช้งาน</button>
+      </div>
+      <div id="backendConnStatus" style="font-size:11px; margin-top:10px; color:var(--text-muted);"></div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast" id="toastPopup">
+    <span id="toastText">บันทึกการแก้ไขแล้ว</span>
+  </div>
+
+  <script src="app.js?v=3.0"></script>
+</body>
+</html>

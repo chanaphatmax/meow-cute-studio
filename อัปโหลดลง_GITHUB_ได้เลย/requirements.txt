@@ -1,0 +1,8 @@
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+imageio-ffmpeg>=0.4.9
+pillow>=10.0.0
+pythainlp>=4.0.0
+SpeechRecognition>=3.10.0
+requests>=2.31.0
+
