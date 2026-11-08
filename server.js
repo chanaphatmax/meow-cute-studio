@@ -484,14 +484,6 @@ print(json.dumps({'ok': True, 'sourcePath': rel_p, 'duration': max(0.2, dur), 'w
       }
       const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
-      // If client requested ephemeral download with immediate zero-retention wipe
-      if (parsedUrl.searchParams.get('cleanup') === '1') {
-        res.on('finish', () => {
-          setTimeout(() => {
-            try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (e) {}
-          }, 3000);
-        });
-      }
     }
   });
 }

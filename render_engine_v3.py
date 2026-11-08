@@ -320,7 +320,7 @@ _STICKER_CACHE = {}
 
 def get_sticker_img(stk_type):
     if stk_type not in _STICKER_CACHE:
-        p = os.path.join(ROOT, "stickers", f"{stk_type}.png")
+        p = os.path.join(BASE_DIR, "stickers", f"{stk_type}.png")
         if os.path.exists(p):
             try:
                 _STICKER_CACHE[stk_type] = Image.open(p).convert("RGBA")

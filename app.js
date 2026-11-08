@@ -1707,34 +1707,25 @@
         modal.hidden = true;
         if (res && res.ok && res.downloadUrl) {
           const a = document.createElement('a');
-          a.href = res.downloadUrl + '&cleanup=1';
+          a.href = res.downloadUrl;
           a.download = res.fileName || project.outputFile || 'เหมียวน่ารัก_3x4_Output.mp4';
           document.body.appendChild(a);
           a.click();
-          document.body.removeChild(a);
-          // Zero Retention: immediately wipe raw source clips from server
-          fetch('/api/session/purge-raw', { method: 'POST' }).catch(() => {});
-          showToast(`เรนเดอร์และบันทึกไฟล์สำเร็จ (ลบไฟล์แคชและวิดีโอออกจากเซิร์ฟเวอร์ทันที 100% Zero-Retention)`);
+          setTimeout(() => {
+            try { document.body.removeChild(a); } catch (e) {}
+          }, 2000);
+          showToast(`เรนเดอร์และบันทึกไฟล์วิดีโอ 3:4 สำเร็จเรียบร้อย!`);
         } else {
-          fallbackDownloadPreRendered();
+          console.error('Render error:', res);
+          const errDetail = (res && (res.error || res.log)) ? (res.error || res.log).slice(0, 120) : 'ระบบไม่สามารถประมวลผลได้';
+          showToast('เรนเดอร์ไม่สำเร็จ: ' + errDetail);
         }
       })
-      .catch(() => {
+      .catch(err => {
         modal.hidden = true;
-        fallbackDownloadPreRendered();
+        console.error('Render network/fetch error:', err);
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์เรนเดอร์');
       });
-  }
-
-  function fallbackDownloadPreRendered() {
-    if (!project) return;
-    const fn = project.outputFile || 'ผลงานตัดต่อ_วิดีโอ1_OneDayVlog_3x4.mp4';
-    const a = document.createElement('a');
-    a.href = '/' + encodeURIComponent(fn);
-    a.download = fn;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    showToast(`ดาวน์โหลดไฟล์ ${fn} สำเร็จ`);
   }
 
   function formatTimecode(sec) {
