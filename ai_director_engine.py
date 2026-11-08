@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import json
 import math
 import wave
@@ -892,11 +893,10 @@ def analyze_custom_video_human_like(video_path, mode="keywords"):
     pid_tag = f"{os.getpid()}_{int(np.random.randint(1000, 9999))}"
     wav_path = os.path.join(workdir, f"audio_{pid_tag}.wav")
 
-    # Ultra-fast single-pass 16kHz audio extraction with high-clarity voice normalization
+    # Zero-latency pure 16kHz audio extraction (sample-accurate timeline alignment)
     subprocess.run([
         FFMPEG_EXE, "-y", "-i", video_path,
-        "-af", "highpass=f=80,lowpass=f=5500,dynaudnorm=f=150:g=15",
-        "-ar", "16000", "-ac", "1", wav_path
+        "-vn", "-ar", "16000", "-ac", "1", wav_path
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     sr_rate = 16000
@@ -917,7 +917,9 @@ def analyze_custom_video_human_like(video_path, mode="keywords"):
     rms = np.array([np.sqrt(np.mean(vad_float[i * step:(i + 1) * step] ** 2)) for i in range(n_frames)])
     smooth_rms = np.convolve(rms, np.ones(3) / 3.0, mode="same")
 
-    silence_thr = max(0.014, float(np.percentile(rms, 20)) * 0.92)
+    p15 = float(np.percentile(rms, 15)) if len(rms) > 0 else 0.01
+    p50 = float(np.median(rms)) if len(rms) > 0 else 0.03
+    silence_thr = max(0.004, min(0.045, p15 * 0.90 + p50 * 0.08))
     effective_end = total_dur
     sample_times = vis["sample_times"]
     lumas = vis["lumas"]
@@ -1038,7 +1040,7 @@ def analyze_custom_video_human_like(video_path, mode="keywords"):
         bg["sub_wins"] = sub_wins
 
     # --------------------------------------------------------------------------
-    # STEP 3: Dual-Pass Parallel In-Memory ASR (Breath-Groups + Sub-Windows)
+    # STEP 3: Complete-Utterance Full-Context Speech Recognition (Google Speech API)
     # --------------------------------------------------------------------------
     try:
         import speech_recognition as sr_mod
@@ -1046,36 +1048,68 @@ def analyze_custom_video_human_like(video_path, mode="keywords"):
     except Exception:
         has_sr = False
 
-    asr_tasks = []
-    for bg_idx, bg in enumerate(breath_groups):
-        # Unbroken full breath-group audio (with 0.16s pre / 0.22s post pad)
-        asr_tasks.append(("bg", bg_idx, -1, max(0.0, bg["start"] - 0.16), min(total_dur, bg["end"] + 0.22)))
-
     rec_shared = sr_mod.Recognizer() if has_sr else None
-
-    def run_asr_slice(task_tuple):
-        kind, bg_i, sw_i, t_s, t_e = task_tuple
-        if not has_sr or rec_shared is None:
-            return (kind, bg_i, sw_i, "")
-        idx1 = max(0, int(t_s * sr_rate))
-        idx2 = min(len(pcm_asr_int16), int(t_e * sr_rate))
-        if idx2 - idx1 < int(0.25 * sr_rate):
-            return (kind, bg_i, sw_i, "")
-        pcm_bytes = pcm_asr_int16[idx1:idx2].tobytes()
-        try:
-            aud = sr_mod.AudioData(pcm_bytes, sr_rate, 2)
-            txt = rec_shared.recognize_google(aud, language="th-TH")
-        except Exception:
-            txt = ""
-        return (kind, bg_i, sw_i, txt)
-
     bg_transcripts = {}
-    if asr_tasks:
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            futs = [pool.submit(run_asr_slice, t) for t in asr_tasks]
-            for f in as_completed(futs):
-                kind, bg_i, sw_i, txt = f.result()
-                bg_transcripts[bg_i] = txt
+
+    if has_sr and rec_shared is not None and len(pcm_asr_int16) > int(0.5 * sr_rate):
+        # 1. Primary Full-Audio Pass: Captures complete grammatical and acoustic context in 1 single fast call
+        full_transcript = ""
+        try:
+            full_aud = sr_mod.AudioData(pcm_asr_int16.tobytes(), sr_rate, 2)
+            full_transcript = clean_asr_text(rec_shared.recognize_google(full_aud, language="th-TH"))
+        except Exception:
+            full_transcript = ""
+
+        # 2. Distribute full transcript across breath groups based on acoustic duration
+        if full_transcript and breath_groups:
+            all_tokens = tokenize_thai_smart(full_transcript)
+            bg_durs = [max(0.35, bg["end"] - bg["start"]) for bg in breath_groups]
+            total_bg_dur = sum(bg_durs)
+
+            if total_bg_dur > 0 and all_tokens:
+                cum_durs = np.cumsum(bg_durs)
+                n_toks = len(all_tokens)
+                last_idx = 0
+                for bg_i, bg in enumerate(breath_groups):
+                    target_ratio = cum_durs[bg_i] / total_bg_dur
+                    target_tok_idx = int(round(target_ratio * n_toks))
+                    if bg_i == len(breath_groups) - 1:
+                        target_tok_idx = n_toks
+                    else:
+                        target_tok_idx = max(last_idx + 1, min(n_toks - (len(breath_groups) - 1 - bg_i), target_tok_idx))
+                    
+                    assigned_tokens = all_tokens[last_idx:target_tok_idx]
+                    bg_transcripts[bg_i] = clean_asr_text("".join(assigned_tokens))
+                    last_idx = target_tok_idx
+
+        # 3. Fallback: If full audio returned empty (e.g. video > 60s or high background noise), transcribe slice by slice
+        if not full_transcript and breath_groups:
+            asr_tasks = []
+            for bg_idx, bg in enumerate(breath_groups):
+                asr_tasks.append(("bg", bg_idx, -1, max(0.0, bg["start"] - 0.14), min(total_dur, bg["end"] + 0.18)))
+
+            def run_asr_slice(task_tuple):
+                kind, bg_i, sw_i, t_s, t_e = task_tuple
+                idx1 = max(0, int(t_s * sr_rate))
+                idx2 = min(len(pcm_asr_int16), int(t_e * sr_rate))
+                if idx2 - idx1 < int(0.20 * sr_rate):
+                    return (kind, bg_i, sw_i, "")
+                pcm_bytes = pcm_asr_int16[idx1:idx2].tobytes()
+                txt = ""
+                for attempt in range(2):
+                    try:
+                        aud = sr_mod.AudioData(pcm_bytes, sr_rate, 2)
+                        txt = rec_shared.recognize_google(aud, language="th-TH")
+                        if txt: break
+                    except Exception:
+                        if attempt == 0: time.sleep(0.12)
+                return (kind, bg_i, sw_i, clean_asr_text(txt))
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futs = [pool.submit(run_asr_slice, t) for t in asr_tasks]
+                for f in as_completed(futs):
+                    kind, bg_i, sw_i, txt = f.result()
+                    bg_transcripts[bg_i] = txt
 
     # Align unbroken Breath-Group tokens onto exact 20ms Sub-Windows
     raw_aligned = []
@@ -1155,8 +1189,8 @@ def analyze_custom_video_human_like(video_path, mode="keywords"):
         use_kw = (mode != "full")
         subtitles.append({
             "id": f"sub_{len(subtitles) + 1}",
-            "start": kw_s if use_kw else full_s,
-            "end": kw_e if use_kw else full_e,
+            "start": full_s,
+            "end": full_e,
             "fullStart": full_s,
             "fullEnd": full_e,
             "kwStart": kw_s,

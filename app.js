@@ -2343,9 +2343,9 @@
         if (mode === 'keywords') {
           if (!s.keywordText) s.keywordText = condenseLineToKeywordsOnly(s.text);
           s.text = s.keywordText;
-          if (s.kwStart !== undefined && s.kwEnd !== undefined) {
-            s.start = s.kwStart;
-            s.end = s.kwEnd;
+          if (s.fullStart !== undefined && s.fullEnd !== undefined) {
+            s.start = s.fullStart;
+            s.end = s.fullEnd;
           }
         } else {
           if (s.fullText) s.text = s.fullText;
@@ -2376,9 +2376,9 @@
       if (!sub.fullText) sub.fullText = sub.text;
       sub.text = condenseLineToKeywordsOnly(sub.text);
       sub.keywordText = sub.text;
-      if (sub.kwStart !== undefined && sub.kwEnd !== undefined) {
-        sub.start = sub.kwStart;
-        sub.end = sub.kwEnd;
+      if (sub.fullStart !== undefined && sub.fullEnd !== undefined) {
+        sub.start = sub.fullStart;
+        sub.end = sub.fullEnd;
       }
       inputActiveSubText.value = sub.text;
       syncAllUI();
