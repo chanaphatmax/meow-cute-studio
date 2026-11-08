@@ -32,7 +32,9 @@ const MIME_TYPES = {
   '.woff2': 'font/woff2',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml'
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json'
 };
 
 function sendJson(res, status, data) {
@@ -405,7 +407,19 @@ print(json.dumps({'ok': True, 'sourcePath': rel_p, 'duration': max(0.2, dur), 'w
     const relPath = pathname === '/' || pathname === '' ? '/index.html' : pathname;
 
     // Strict Whitelist for Root Public Assets (Blocks direct exposure of server.js, python scripts, json, etc.)
-    const ALLOWED_ROOT_FILES = new Set(['/index.html', '/styles.css', '/app.js', '/favicon.ico', '/site.webmanifest']);
+    const ALLOWED_ROOT_FILES = new Set([
+      '/index.html',
+      '/styles.css',
+      '/app.js',
+      '/favicon.ico',
+      '/favicon-32x32.png',
+      '/favicon-16x16.png',
+      '/apple-touch-icon.png',
+      '/apple-touch-icon-precomposed.png',
+      '/icon-192.png',
+      '/icon-512.png',
+      '/site.webmanifest'
+    ]);
     const isPublicDirectory = relPath.startsWith('/fonts/') || relPath.startsWith('/sfx/');
     if (!ALLOWED_ROOT_FILES.has(relPath) && !isPublicDirectory) {
       sessionSandbox.applySecurityHeaders(res);
