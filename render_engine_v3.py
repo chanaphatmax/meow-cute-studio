@@ -316,6 +316,58 @@ def draw_kinetic_subtitle(draw, target_w, target_h, sub_item, cur_t, style_cfg):
 
             cur_x += w + spacing
 
+_STICKER_CACHE = {}
+
+def get_sticker_img(stk_type):
+    if stk_type not in _STICKER_CACHE:
+        p = os.path.join(ROOT, "stickers", f"{stk_type}.png")
+        if os.path.exists(p):
+            try:
+                _STICKER_CACHE[stk_type] = Image.open(p).convert("RGBA")
+            except Exception:
+                _STICKER_CACHE[stk_type] = None
+        else:
+            _STICKER_CACHE[stk_type] = None
+    return _STICKER_CACHE[stk_type]
+
+def draw_kinetic_sticker(overlay_img, target_w, target_h, stk, cur_t):
+    stk_type = stk.get("type", "fire")
+    simg = get_sticker_img(stk_type)
+    if simg is None:
+        return
+    
+    age = cur_t - stk.get("start", 0.0)
+    anim = stk.get("animation", "pop")
+    scale = float(stk.get("scale", 1.0))
+
+    if anim == "pop" and age < 0.25:
+        p = age / 0.25
+        bounce = 0.5 + 0.6 * math.sin(p * math.pi * 0.85)
+        scale *= bounce
+    elif anim == "bounce":
+        scale *= (1.0 + 0.08 * math.sin(age * 8.0))
+
+    base_w = int(140 * (target_w / 720.0) * scale)
+    base_h = int(140 * (target_w / 720.0) * scale)
+    if base_w <= 8 or base_h <= 8:
+        return
+
+    rel_x = float(stk.get("x", 0.82))
+    rel_y = float(stk.get("y", 0.32))
+    cx = int(rel_x * target_w)
+    cy = int(rel_y * target_h)
+
+    resized = simg.resize((base_w, base_h), Image.Resampling.LANCZOS)
+    if anim == "wiggle":
+        rot = math.sin(age * 12.0) * 8.0
+        resized = resized.rotate(rot, resample=Image.Resampling.BICUBIC, expand=True)
+
+    rw, rh = resized.size
+    px = cx - rw // 2
+    py = cy - rh // 2
+
+    overlay_img.alpha_composite(resized, (max(0, px), max(0, py)))
+
 # --- AUDIO MIXER WITH SAMPLE-ACCURATE SEGMENT STITCHING & SFX ---
 def build_mixed_audio(in_video_path, segments, sfx_events, out_wav_path):
     temp_full_wav = out_wav_path + ".full.wav"
@@ -519,6 +571,20 @@ def render_project(project_cfg, out_mp4_path):
                         alpha_f = max(0.0, min(0.85, vp * inten))
                         white_f = np.full_like(canvas_bgr, 255)
                         canvas_bgr = cv2.addWeighted(canvas_bgr, 1.0 - alpha_f, white_f, alpha_f, 0)
+                    elif vtype == "cyber_glow":
+                        blur_c = cv2.GaussianBlur(canvas_bgr, (0, 0), 21)
+                        cyan_tint = np.zeros_like(canvas_bgr)
+                        cyan_tint[:, :, 0] = 255
+                        cyan_tint[:, :, 1] = 200
+                        canvas_bgr = cv2.addWeighted(canvas_bgr, 1.0, blur_c, inten * 0.40, 0)
+                        canvas_bgr = cv2.addWeighted(canvas_bgr, 1.0, cyan_tint, inten * 0.12, 0)
+                    elif vtype == "vignette_dark":
+                        h_v, w_v = canvas_bgr.shape[:2]
+                        Y, X = np.ogrid[:h_v, :w_v]
+                        dist = np.sqrt((X - w_v / 2) ** 2 + (Y - h_v / 2) ** 2)
+                        max_dist = np.sqrt((w_v / 2) ** 2 + (h_v / 2) ** 2)
+                        vign_mask = np.clip(1.0 - (dist / max_dist) * inten * 1.5, 0.25, 1.0)[:, :, None]
+                        canvas_bgr = (canvas_bgr * vign_mask).astype(np.uint8)
 
             # Subtle bottom gradient vignette so subtitles are 100% readable on any background
             vignette_h = int(target_h * 0.24)
@@ -580,6 +646,13 @@ def render_project(project_cfg, out_mp4_path):
                 if sub["start"] <= ref_t <= sub["end"]:
                     draw_kinetic_subtitle(draw, target_w, target_h, sub, ref_t, style_cfg)
                     break
+
+            # 3D. Kinetic Viral Stickers & Mascots
+            for stk in project_cfg.get("stickers", []):
+                s_mode = stk.get("timeMode", "source")
+                ref_t = timeline_t if s_mode == "timeline" else src_t
+                if stk["start"] <= ref_t <= stk["end"]:
+                    draw_kinetic_sticker(ov, target_w, target_h, stk, ref_t)
 
             comp = Image.alpha_composite(pil_img, ov).convert("RGB")
             pipe.stdin.write(cv2.cvtColor(np.array(comp), cv2.COLOR_RGB2BGR).tobytes())
