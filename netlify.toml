@@ -1,0 +1,47 @@
+# Netlify Production Configuration for Meow Cute (เหมียวน่ารัก 3:4 Studio)
+# High-speed static edge delivery with dynamic reverse-proxy for AI & rendering backend
+
+[build]
+  publish = "."
+
+# Enterprise OWASP Security & Performance Headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Cache-control for static fonts and audio SFX
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/sfx/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# API & Tenant Session Reverse-Proxy
+# Forwards /api/* and /user_sessions/* directly to the backend compute node
+# (Replace http://localhost:3350 with your cloud backend URL if hosted on Render/Railway/VPS)
+[[redirects]]
+  from = "/api/*"
+  to = "http://localhost:3350/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/user_sessions/*"
+  to = "http://localhost:3350/user_sessions/:splat"
+  status = 200
+  force = true
+
+# SPA fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
