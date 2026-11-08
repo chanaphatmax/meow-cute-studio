@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Itim&family=Kanit:wght@500;600;700;800;900&family=Mali:wght@600;700&family=Mitr:wght@500;600;700&family=Prompt:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=3.0">
 </head>
 <body>
 
@@ -199,38 +199,38 @@
             <span class="box-title">✨ สติกเกอร์ไวรัล & มาสคอตน่ารัก (จิ้มเพื่อแปะคลิป)</span>
           </div>
 
-          <!-- Category Subtabs -->
+          <!-- Category Subtabs (Clean 3-Column Fit, Zero Overflow) -->
           <div class="stk-subtab-bar">
-            <button type="button" class="stk-subtab-btn active" data-stk-tab="mascot">🐱🐶 น้องเหมียว & หมา</button>
-            <button type="button" class="stk-subtab-btn" data-stk-tab="viral">🔥🚀 รีแอคชั่นไวรัล</button>
-            <button type="button" class="stk-subtab-btn" data-stk-tab="vfx">✨🎬 เอฟเฟกต์ภาพ & เสียง</button>
+            <button type="button" class="stk-subtab-btn active" data-stk-tab="mascot" title="น้องเหมียว & หมา">🐱 มาสคอต</button>
+            <button type="button" class="stk-subtab-btn" data-stk-tab="viral" title="รีแอคชั่นไวรัล">🔥 รีแอคชั่น</button>
+            <button type="button" class="stk-subtab-btn" data-stk-tab="vfx" title="เอฟเฟกต์ภาพ & เสียง">✨ เอฟเฟกต์</button>
           </div>
 
           <!-- Group 1: Mascots -->
           <div class="stk-pane active" id="stkPaneMascot">
             <div class="stk-card-grid">
               <button type="button" class="stk-card-btn" data-sticker="cat_paw" data-label="อุ้งเท้าแมว">
-                <img src="/stickers/cat_paw.png" alt="อุ้งเท้าแมว" loading="lazy" />
+                <img src="/stickers/cat_paw.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="อุ้งเท้าแมว" loading="lazy" />
                 <span>อุ้งเท้าแมว</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="cat_love" data-label="แมวเลิฟ">
-                <img src="/stickers/cat_love.png" alt="แมวเลิฟ" loading="lazy" />
+                <img src="/stickers/cat_love.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="แมวเลิฟ" loading="lazy" />
                 <span>แมวเลิฟ</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="cat_surprise" data-label="แมวตกใจ">
-                <img src="/stickers/cat_surprise.png" alt="แมวตกใจ" loading="lazy" />
+                <img src="/stickers/cat_surprise.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="แมวตกใจ" loading="lazy" />
                 <span>แมวตกใจ</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="cat_wink" data-label="แมววิ้งค์">
-                <img src="/stickers/cat_wink.png" alt="แมววิ้งค์" loading="lazy" />
+                <img src="/stickers/cat_wink.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="แมววิ้งค์" loading="lazy" />
                 <span>แมววิ้งค์</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="dog_happy" data-label="หมายิ้ม">
-                <img src="/stickers/dog_happy.png" alt="หมายิ้ม" loading="lazy" />
+                <img src="/stickers/dog_happy.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="หมายิ้ม" loading="lazy" />
                 <span>หมายิ้ม</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="dog_cool" data-label="หมาแว่นเท่">
-                <img src="/stickers/dog_cool.png" alt="หมาแว่นเท่" loading="lazy" />
+                <img src="/stickers/dog_cool.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="หมาแว่นเท่" loading="lazy" />
                 <span>หมาแว่นเท่</span>
               </button>
             </div>
@@ -240,79 +240,79 @@
           <div class="stk-pane" id="stkPaneViral">
             <div class="stk-card-grid">
               <button type="button" class="stk-card-btn" data-sticker="fire" data-label="ไฟลุก">
-                <img src="/stickers/fire.png" alt="ไฟลุก" loading="lazy" />
+                <img src="/stickers/fire.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ไฟลุก" loading="lazy" />
                 <span>ไฟลุก</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="mind_blown" data-label="สมองระเบิด">
-                <img src="/stickers/mind_blown.png" alt="สมองระเบิด" loading="lazy" />
+                <img src="/stickers/mind_blown.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="สมองระเบิด" loading="lazy" />
                 <span>สมองระเบิด</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="hundred" data-label="เต็มร้อย">
-                <img src="/stickers/hundred.png" alt="เต็มร้อย" loading="lazy" />
+                <img src="/stickers/hundred.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="เต็มร้อย" loading="lazy" />
                 <span>เต็มร้อย</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="rocket" data-label="จรวดพุ่ง">
-                <img src="/stickers/rocket.png" alt="จรวดพุ่ง" loading="lazy" />
+                <img src="/stickers/rocket.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="จรวดพุ่ง" loading="lazy" />
                 <span>จรวดพุ่ง</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="sparkles" data-label="ประกายวิ้ง">
-                <img src="/stickers/sparkles.png" alt="ประกายวิ้ง" loading="lazy" />
+                <img src="/stickers/sparkles.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ประกายวิ้ง" loading="lazy" />
                 <span>ประกายวิ้ง</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="heart" data-label="หัวใจ">
-                <img src="/stickers/heart.png" alt="หัวใจ" loading="lazy" />
+                <img src="/stickers/heart.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="หัวใจ" loading="lazy" />
                 <span>หัวใจ</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="star_struck" data-label="ตาวาว">
-                <img src="/stickers/star_struck.png" alt="ตาวาว" loading="lazy" />
+                <img src="/stickers/star_struck.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ตาวาว" loading="lazy" />
                 <span>ตาวาว</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="party" data-label="ปาร์ตี้">
-                <img src="/stickers/party.png" alt="ปาร์ตี้" loading="lazy" />
+                <img src="/stickers/party.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ปาร์ตี้" loading="lazy" />
                 <span>ปาร์ตี้</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="eyes" data-label="ตาโต">
-                <img src="/stickers/eyes.png" alt="ตาโต" loading="lazy" />
+                <img src="/stickers/eyes.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ตาโต" loading="lazy" />
                 <span>ตาโต</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="money" data-label="เงินทอง">
-                <img src="/stickers/money.png" alt="เงินทอง" loading="lazy" />
+                <img src="/stickers/money.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="เงินทอง" loading="lazy" />
                 <span>เงินทอง</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="light_bulb" data-label="ไอเดีย">
-                <img src="/stickers/light_bulb.png" alt="ไอเดีย" loading="lazy" />
+                <img src="/stickers/light_bulb.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ไอเดีย" loading="lazy" />
                 <span>ไอเดีย</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="warning" data-label="เตือน">
-                <img src="/stickers/warning.png" alt="เตือน" loading="lazy" />
+                <img src="/stickers/warning.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="เตือน" loading="lazy" />
                 <span>คำเตือน</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="skull" data-label="ฮาจะตาย">
-                <img src="/stickers/skull.png" alt="ฮาจะตาย" loading="lazy" />
+                <img src="/stickers/skull.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ฮาจะตาย" loading="lazy" />
                 <span>ฮาจะตาย</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="thumbs_up" data-label="ไลค์">
-                <img src="/stickers/thumbs_up.png" alt="ไลค์" loading="lazy" />
+                <img src="/stickers/thumbs_up.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="ไลค์" loading="lazy" />
                 <span>ไลค์เลย</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="muscle" data-label="สตรอง">
-                <img src="/stickers/muscle.png" alt="สตรอง" loading="lazy" />
+                <img src="/stickers/muscle.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="สตรอง" loading="lazy" />
                 <span>สตรอง</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="high_voltage" data-label="สายฟ้า">
-                <img src="/stickers/high_voltage.png" alt="สายฟ้า" loading="lazy" />
+                <img src="/stickers/high_voltage.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="สายฟ้า" loading="lazy" />
                 <span>สายฟ้า</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="chart_up" data-label="กราฟพุ่ง">
-                <img src="/stickers/chart_up.png" alt="กราฟพุ่ง" loading="lazy" />
+                <img src="/stickers/chart_up.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="กราฟพุ่ง" loading="lazy" />
                 <span>กราฟพุ่ง</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="robot" data-label="AI โรบอท">
-                <img src="/stickers/robot.png" alt="AI โรบอท" loading="lazy" />
+                <img src="/stickers/robot.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="AI โรบอท" loading="lazy" />
                 <span>AI โรบอท</span>
               </button>
               <button type="button" class="stk-card-btn" data-sticker="cool" data-label="สุดคูล">
-                <img src="/stickers/cool.png" alt="สุดคูล" loading="lazy" />
+                <img src="/stickers/cool.png" width="40" height="40" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;" alt="สุดคูล" loading="lazy" />
                 <span>สุดคูล</span>
               </button>
             </div>
@@ -803,6 +803,6 @@
     <span id="toastText">บันทึกการแก้ไขแล้ว</span>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>

@@ -1223,6 +1223,64 @@ def analyze_custom_video_human_like(video_path, mode="keywords"):
     for s in subtitles:
         s.pop("_energy", None)
 
+    # --------------------------------------------------------------------------
+    # STEP 6: AI Viral Content Director - Mascot & Reel Reactions Placement
+    # --------------------------------------------------------------------------
+    stickers = []
+    if effective_end >= 1.5:
+        first_txt = subtitles[0].get("fullText", "") if subtitles else ""
+        opener_type = "cat_paw" if any(w in first_txt for w in ("รัก", "แฟน", "น่ารัก", "คิ้วท์", "น้อง", "แมว")) else "fire"
+        stickers.append({
+            "id": "stk_1",
+            "type": opener_type,
+            "start": 0.30,
+            "end": round(min(effective_end, 2.70), 2),
+            "x": 0.82,
+            "y": 0.30,
+            "scale": 1.05,
+            "animation": "pop",
+            "label": "สติกเกอร์เปิด Hook"
+        })
+
+    KEYWORD_STICKER_MAP = [
+        (("สวย", "น่ารัก", "ชอบ", "แฟน", "รัก", "คิ้วท์", "ฟิน", "หล่อ", "ใจ"), "cat_love"),
+        (("ปัง", "ฮิต", "ไฟ", "แรง", "สุด", "เด็ด", "ห้ามพลาด", "เด็ดสุด"), "fire"),
+        (("จริง", "เป๊ะ", "ใช่", "ครบ", "ร้อย", "ตำ", "ต้องตำ"), "hundred"),
+        (("อึ้ง", "ทำไม", "อะไร", "ตกใจ", "ว้าว", "งง", "สมอง"), "mind_blown"),
+        (("พิกัด", "ตะกร้า", "ราคา", "บาท", "ขาย", "เงิน", "โปร", "คุ้ม"), "money"),
+        (("ไอเดีย", "เคล็ดลับ", "รู้ยัง", "ทริค"), "light_bulb"),
+        (("ระวัง", "ห้าม", "เตือน", "ผิด", "อย่า"), "warning"),
+        (("โต", "พุ่ง", "เร็ว", "ไว", "ยอด"), "rocket"),
+        (("วาว", "ประทับใจ", "ว้าวมาก", "ตาโต"), "star_struck"),
+        (("ฉลอง", "เย้", "สำเร็จ", "ไชโย", "ปาร์ตี้"), "party"),
+        (("ฮา", "ตลก", "ขำ", "ตาย"), "skull"),
+        (("สตรอง", "พลัง", "ฟิต", "แกร่ง"), "muscle"),
+        (("เยี่ยม", "ดีมาก", "กดไลค์", "เลิศ"), "thumbs_up")
+    ]
+
+    for sub_idx, sub in enumerate(subtitles):
+        txt = sub.get("fullText", "").replace("*", "")
+        chosen_type = None
+        for keywords, st_name in KEYWORD_STICKER_MAP:
+            if any(k in txt for k in keywords):
+                chosen_type = st_name
+                break
+        
+        if chosen_type and not any(abs(s["start"] - sub["start"]) < 1.8 for s in stickers):
+            stk_start = sub["start"]
+            stk_end = sub["end"]
+            stickers.append({
+                "id": f"stk_{len(stickers) + 1}",
+                "type": chosen_type,
+                "start": stk_start,
+                "end": stk_end,
+                "x": 0.50 if sub_idx % 2 == 0 else 0.82,
+                "y": 0.32 if sub_idx % 2 == 0 else 0.38,
+                "scale": 1.10,
+                "animation": "pop",
+                "label": f"รีแอคชั่น: {chosen_type}"
+            })
+
     hook_banner = ""
     if len(subtitles) >= 2:
         k1 = safe_thai_word_limit(subtitles[0]["keywordText"].replace("*", "").strip(), 18)
@@ -1259,6 +1317,7 @@ def analyze_custom_video_human_like(video_path, mode="keywords"):
         ],
         "sfx": sorted(sfx, key=lambda x: x["time"]),
         "vfx": vfx,
+        "stickers": stickers,
         "subtitles": subtitles
     }
 
