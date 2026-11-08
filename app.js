@@ -1611,6 +1611,18 @@
         document.getElementById('paneLeftCuts').classList.toggle('active', btn.dataset.ltab === 'cuts');
         document.getElementById('paneLeftZooms').classList.toggle('active', btn.dataset.ltab === 'zooms');
         document.getElementById('paneLeftSfx').classList.toggle('active', btn.dataset.ltab === 'sfx');
+
+        // Sync with mobile bottom navigation bar if on mobile screen
+        if (window.innerWidth <= 768) {
+          currentMobileSection = btn.dataset.ltab;
+          document.querySelectorAll('.mtab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.msection === currentMobileSection);
+          });
+          const pl = document.querySelector('.panel-left');
+          const pr = document.querySelector('.panel-right');
+          if (pl) pl.style.display = 'flex';
+          if (pr) pr.style.display = 'none';
+        }
       });
     });
 
@@ -1620,8 +1632,76 @@
         document.querySelectorAll('[data-rtab]').forEach(b => b.classList.toggle('active', b === btn));
         document.getElementById('paneRightSubs').classList.toggle('active', btn.dataset.rtab === 'subs');
         document.getElementById('paneRightStyle').classList.toggle('active', btn.dataset.rtab === 'style');
+
+        // Sync with mobile bottom navigation bar if on mobile screen
+        if (window.innerWidth <= 768) {
+          currentMobileSection = btn.dataset.rtab;
+          document.querySelectorAll('.mtab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.msection === currentMobileSection);
+          });
+          const pl = document.querySelector('.panel-left');
+          const pr = document.querySelector('.panel-right');
+          if (pl) pl.style.display = 'none';
+          if (pr) pr.style.display = 'flex';
+        }
       });
     });
+
+    // Mobile Bottom Navigation Bar (CapCut / TikTok Style Tool Switcher)
+    let currentMobileSection = 'cuts';
+    function syncResponsivePanels() {
+      const isMobile = window.innerWidth <= 768;
+      const pl = document.querySelector('.panel-left');
+      const pr = document.querySelector('.panel-right');
+
+      if (!isMobile) {
+        // Desktop / iPad: Restore default grid styling
+        if (pl) pl.style.display = '';
+        if (pr) pr.style.display = '';
+        return;
+      }
+
+      // Mobile screen: display only the chosen drawer
+      document.querySelectorAll('.mtab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.msection === currentMobileSection);
+      });
+
+      if (['cuts', 'zooms', 'sfx'].includes(currentMobileSection)) {
+        if (pl) pl.style.display = 'flex';
+        if (pr) pr.style.display = 'none';
+        const tabBtn = document.getElementById(
+          currentMobileSection === 'cuts' ? 'tabBtnCuts' :
+          currentMobileSection === 'zooms' ? 'tabBtnZooms' : 'tabBtnSfx'
+        );
+        if (tabBtn) {
+          document.querySelectorAll('[data-ltab]').forEach(b => b.classList.toggle('active', b === tabBtn));
+          document.getElementById('paneLeftCuts').classList.toggle('active', currentMobileSection === 'cuts');
+          document.getElementById('paneLeftZooms').classList.toggle('active', currentMobileSection === 'zooms');
+          document.getElementById('paneLeftSfx').classList.toggle('active', currentMobileSection === 'sfx');
+        }
+      } else {
+        if (pl) pl.style.display = 'none';
+        if (pr) pr.style.display = 'flex';
+        const tabBtn = document.getElementById(
+          currentMobileSection === 'subs' ? 'tabBtnSubs' : 'tabBtnStyle'
+        );
+        if (tabBtn) {
+          document.querySelectorAll('[data-rtab]').forEach(b => b.classList.toggle('active', b === tabBtn));
+          document.getElementById('paneRightSubs').classList.toggle('active', currentMobileSection === 'subs');
+          document.getElementById('paneRightStyle').classList.toggle('active', currentMobileSection === 'style');
+        }
+      }
+    }
+
+    document.querySelectorAll('.mtab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentMobileSection = btn.dataset.msection;
+        syncResponsivePanels();
+      });
+    });
+
+    window.addEventListener('resize', syncResponsivePanels);
+    syncResponsivePanels();
 
     // Delete Current Clip
     if (btnDeleteCurrentClip) {
