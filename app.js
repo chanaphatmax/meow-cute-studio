@@ -1695,7 +1695,28 @@
   function renderAndExportMp4() {
     if (!project) return;
     const modal = document.getElementById('renderModal');
+    const timerText = document.getElementById('renderTimerText');
+    const descText = document.getElementById('renderModalDesc');
     modal.hidden = false;
+
+    let elapsedSec = 0;
+    if (timerText) timerText.textContent = '⏱️ เริ่มต้นกระบวนการเรนเดอร์ (0 วินาที)...';
+    if (descText) descText.textContent = 'กำลังคำนวณเฟรมภาพ 3:4, ซูมไดนามิก, ซับคำสำคัญ และเอฟเฟกต์...';
+
+    const renderTimer = setInterval(() => {
+      elapsedSec++;
+      if (timerText) {
+        timerText.textContent = `⏱️ กำลังเรนเดอร์ระดับเฟรมต่อเฟรม: ผ่านไปแล้ว ${elapsedSec} วินาที...`;
+      }
+      if (descText) {
+        if (elapsedSec > 15) {
+          descText.textContent = 'กำลังเรนเดอร์ซับคำสำคัญ & เอฟเฟกต์การ์ตูนลงในแต่ละเฟรมอย่างละเอียด...';
+        }
+        if (elapsedSec > 35) {
+          descText.textContent = 'กำลังมิกซ์เสียงเอฟเฟกต์สเตอริโอและรวมไฟล์ MP4 ขั้นสุดท้าย...';
+        }
+      }
+    }, 1000);
 
     fetch('/api/render', {
       method: 'POST',
@@ -1704,6 +1725,7 @@
     })
       .then(r => r.json())
       .then(res => {
+        clearInterval(renderTimer);
         modal.hidden = true;
         if (res && res.ok && res.downloadUrl) {
           const a = document.createElement('a');
@@ -1714,7 +1736,7 @@
           setTimeout(() => {
             try { document.body.removeChild(a); } catch (e) {}
           }, 2000);
-          showToast(`เรนเดอร์และบันทึกไฟล์วิดีโอ 3:4 สำเร็จเรียบร้อย!`);
+          showToast(`เรนเดอร์และบันทึกไฟล์วิดีโอ 3:4 สำเร็จเรียบร้อย! (${elapsedSec}s)`);
         } else {
           console.error('Render error:', res);
           const errDetail = (res && (res.error || res.log)) ? (res.error || res.log).slice(0, 120) : 'ระบบไม่สามารถประมวลผลได้';
@@ -1722,6 +1744,7 @@
         }
       })
       .catch(err => {
+        clearInterval(renderTimer);
         modal.hidden = true;
         console.error('Render network/fetch error:', err);
         showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์เรนเดอร์');

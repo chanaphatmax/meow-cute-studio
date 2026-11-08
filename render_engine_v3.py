@@ -458,11 +458,12 @@ def render_project(project_cfg, out_mp4_path):
     fit_mode = project_cfg.get("fitMode", "fill") # 'fill' (Full-bleed 3:4) or 'fit' (Blurred frame)
 
     cap = cv2.VideoCapture(in_video)
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    raw_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    fps = min(30.0, raw_fps)
     total_src_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    src_dur = total_src_frames / fps
+    src_dur = total_src_frames / raw_fps
 
     segments = [s for s in project_cfg.get("segments", []) if not s.get("deleted")]
     if not segments:
@@ -480,8 +481,9 @@ def render_project(project_cfg, out_mp4_path):
         "-r", str(fps),
         "-i", "-",
         "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "18",
+        "-preset", "ultrafast",
+        "-tune", "zerolatency",
+        "-crf", "22",
         "-pix_fmt", "yuv420p",
         temp_vid
     ]
@@ -490,6 +492,27 @@ def render_project(project_cfg, out_mp4_path):
     style_cfg = project_cfg.get("style", {})
     font_family = style_cfg.get("fontFamily", "kanit")
     accent_rgb = hex_to_rgb(style_cfg.get("accentColor", "#FF5A96"))
+
+    # Pre-render static Top Hook Banner once (avoids heavy TrueType redraw on every frame)
+    hook_tuple = None
+    hook_text = project_cfg.get("hookText", "")
+    hook_dur = float(project_cfg.get("hookDuration", 999.0))
+    if hook_text:
+        f_hook = get_font("mitr" if font_family == "mitr" else "kanit", int(23 * (target_w / 720.0)))
+        tmp_im = Image.new("RGBA", (1, 1))
+        hw, hh = measure_thai_text(ImageDraw.Draw(tmp_im), hook_text, f_hook)
+        box_w = min(target_w - 40, hw + 76)
+        box_h = int(46 * (target_w / 720.0))
+        hx = (target_w - box_w) // 2
+        hy = int(28 * (target_h / 960.0))
+        hc = Image.new("RGBA", (box_w + 10, box_h + 10), (0, 0, 0, 0))
+        hd = ImageDraw.Draw(hc)
+        hd.rounded_rectangle([2, 6, box_w + 2, box_h + 6], radius=23, fill=(0, 0, 0, 125))
+        hd.rounded_rectangle([2, 2, box_w + 2, box_h + 2], radius=23, fill=(255, 255, 255, 242), outline=(*accent_rgb, 255), width=3)
+        draw_sparkle_icon(hd, 2 + 22, 2 + box_h // 2, 9, (*accent_rgb, 255))
+        draw_sparkle_icon(hd, box_w + 2 - 22, 2 + box_h // 2, 9, (*accent_rgb, 255))
+        draw_thai_shaped(hd, ((box_w + 4) // 2, 2 + box_h // 2), hook_text, f_hook, fill=(20, 20, 25, 255), anchor="mm")
+        hook_tuple = (hc, hx - 2, hy - 2)
 
     timeline_t = 0.0
     dt = 1.0 / fps
@@ -591,29 +614,13 @@ def render_project(project_cfg, out_mp4_path):
             grad = np.linspace(1.0, 0.62, vignette_h, dtype=np.float32)[:, None, None]
             canvas_bgr[target_h - vignette_h:] = (canvas_bgr[target_h - vignette_h:].astype(np.float32) * grad).astype(np.uint8)
 
-            # 3. PIL RGBA Overlay for Hook Banner, Product Pin, and Kinetic Subtitles
-            rgb = cv2.cvtColor(canvas_bgr, cv2.COLOR_BGR2RGB)
-            pil_img = Image.fromarray(rgb).convert("RGBA")
-            ov = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(ov)
+            # 3. Direct In-Place PIL Rendering (Blazing Fast, Zero Full-Frame Allocations)
+            pil_img = Image.fromarray(cv2.cvtColor(canvas_bgr, cv2.COLOR_BGR2RGBA))
+            draw = ImageDraw.Draw(pil_img)
 
-            # 3A. Top Hook Pill Banner
-            hook_text = project_cfg.get("hookText", "")
-            hook_dur = float(project_cfg.get("hookDuration", 999.0))
-            if hook_text and timeline_t <= hook_dur:
-                f_hook = get_font("mitr" if font_family == "mitr" else "kanit", int(23 * (target_w / 720.0)))
-                hw, hh = measure_thai_text(draw, hook_text, f_hook)
-                box_w = min(target_w - 40, hw + 76)
-                box_h = int(46 * (target_w / 720.0))
-                hx = (target_w - box_w) // 2
-                hy = int(28 * (target_h / 960.0))
-                # Soft shadow
-                draw.rounded_rectangle([hx, hy + 4, hx + box_w, hy + box_h + 4], radius=23, fill=(0, 0, 0, 125))
-                # White/Frosted pill with colored border
-                draw.rounded_rectangle([hx, hy, hx + box_w, hy + box_h], radius=23, fill=(255, 255, 255, 242), outline=(*accent_rgb, 255), width=3)
-                draw_sparkle_icon(draw, hx + 22, hy + box_h // 2, 9, (*accent_rgb, 255))
-                draw_sparkle_icon(draw, hx + box_w - 22, hy + box_h // 2, 9, (*accent_rgb, 255))
-                draw_thai_shaped(draw, (target_w // 2, hy + box_h // 2), hook_text, f_hook, fill=(20, 20, 25, 255), anchor="mm")
+            # 3A. Top Hook Pill Banner (Pre-rendered, 0ms instant blit)
+            if hook_tuple and timeline_t <= hook_dur:
+                pil_img.alpha_composite(hook_tuple[0], (hook_tuple[1], hook_tuple[2]))
 
             # 3B. Floating Product Pin Tag
             for pin in project_cfg.get("pins", []):
@@ -652,10 +659,9 @@ def render_project(project_cfg, out_mp4_path):
                 s_mode = stk.get("timeMode", "source")
                 ref_t = timeline_t if s_mode == "timeline" else src_t
                 if stk["start"] <= ref_t <= stk["end"]:
-                    draw_kinetic_sticker(ov, target_w, target_h, stk, ref_t)
+                    draw_kinetic_sticker(pil_img, target_w, target_h, stk, ref_t)
 
-            comp = Image.alpha_composite(pil_img, ov).convert("RGB")
-            pipe.stdin.write(cv2.cvtColor(np.array(comp), cv2.COLOR_RGB2BGR).tobytes())
+            pipe.stdin.write(cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGBA2BGR).tobytes())
             timeline_t += dt
 
     cap.release()
