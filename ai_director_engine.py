@@ -951,96 +951,10 @@ def analyze_custom_video_human_like(video_path, mode="keywords"):
     voiced = rms[:max_frame] > silence_thr
 
     # --------------------------------------------------------------------------
-    # STEP 1: Detect Atomic 20ms Voiced Micro-Islands (Pause >= 80ms = 4 frames)
-    # --------------------------------------------------------------------------
-    micro_islands = []
-    in_v = False
-    s_i = 0
-    for i in range(max_frame):
-        if voiced[i] and not in_v:
-            s_i = i
-            in_v = True
-        elif not voiced[i] and in_v:
-            if not np.any(voiced[i:min(max_frame, i + 4)]):
-                dur = (i - s_i) * 0.02
-                if dur >= 0.08:
-                    m_s = round(s_i * 0.02, 2)
-                    m_e = round(i * 0.02, 2)
-                    micro_islands.append([m_s, m_e])
-                in_v = False
-    if in_v and (max_frame - s_i) * 0.02 >= 0.08:
-        micro_islands.append([round(s_i * 0.02, 2), round(effective_end, 2)])
-
-    # Only split a continuous micro-island if it exceeds 3.15s without any 80ms pause
-    fine_micro = []
-    for m_s, m_e in micro_islands:
-        cur = m_s
-        while m_e - cur > 3.15:
-            lo = int((cur + 1.25) / 0.02)
-            hi = min(max_frame - 1, int(min(m_e - 0.90, cur + 2.55) / 0.02))
-            if hi <= lo:
-                break
-            v_idx = lo + int(np.argmin(smooth_rms[lo:hi + 1]))
-            cut_t = round(v_idx * 0.02, 2)
-            fine_micro.append([cur, cut_t])
-            cur = cut_t
-        if m_e - cur >= 0.14:
-            fine_micro.append([cur, m_e])
-
-    # --------------------------------------------------------------------------
-    # STEP 2: Group into Unbroken Breath-Groups (Break at Pause >= 260ms) & Sub-Windows
-    # --------------------------------------------------------------------------
-    breath_groups = []
-    for m_s, m_e in fine_micro:
-        if not breath_groups:
-            breath_groups.append({"start": m_s, "end": m_e, "items": [[m_s, m_e]]})
-        else:
-            bg = breath_groups[-1]
-            gap = m_s - bg["end"]
-            comb = m_e - bg["start"]
-            # Preserve stop consonants (< 260ms gap) inside the same Breath-Group; break at true breath pauses >= 260ms
-            if gap < 0.26 and comb <= 6.5:
-                bg["end"] = m_e
-                bg["items"].append([m_s, m_e])
-            elif gap < 0.34 and (bg["end"] - bg["start"] < 0.90 or m_e - m_s < 0.70) and comb <= 4.8:
-                bg["end"] = m_e
-                bg["items"].append([m_s, m_e])
-            else:
-                breath_groups.append({"start": m_s, "end": m_e, "items": [[m_s, m_e]]})
-
-    # Partition each Breath-Group into Display Subtitle Windows (1.2s - 2.95s each)
-    for bg in breath_groups:
-        items = bg["items"]
-        sub_wins = []
-        cur_w = None
-        for it_s, it_e in items:
-            f1 = max(0, int(it_s / 0.02))
-            f2 = min(max_frame, max(f1 + 1, int(it_e / 0.02)))
-            it_rms = float(np.mean(rms[f1:f2]))
-            it_act = max(0.10, it_e - it_s)
-            if cur_w is None:
-                cur_w = [it_s, it_e, it_act, it_rms]
-            else:
-                gap = it_s - cur_w[1]
-                comb_dur = it_e - cur_w[0]
-                if (comb_dur <= 2.85 and gap < 0.20) or (cur_w[1] - cur_w[0] < 0.95 and comb_dur <= 3.10 and gap < 0.26):
-                    cur_w[1] = it_e
-                    cur_w[2] += it_act
-                    cur_w[3] = max(cur_w[3], it_rms)
-                else:
-                    sub_wins.append(cur_w)
-                    cur_w = [it_s, it_e, it_act, it_rms]
-        if cur_w is not None:
-            if sub_wins and (cur_w[1] - cur_w[0] < 0.75) and (cur_w[1] - sub_wins[-1][0] <= 3.15):
-                sub_wins[-1][1] = cur_w[1]
-                sub_wins[-1][2] += cur_w[2]
-                sub_wins[-1][3] = max(sub_wins[-1][3], cur_w[3])
-            else:
-                sub_wins.append(cur_w)
-        bg["sub_wins"] = sub_wins
-
-    # --------------------------------------------------------------------------
-    # STEP 3: Complete-Utterance Full-Context Speech Recognition (Google Speech API)
+    # STEP 1 & 2: Ground-Truth Acoustic Chunk ASR (Zero-Latency Timeline Alignment)
+    # Instead of guessing tokens across background music, we query Google ASR directly
+    # on overlapping temporal audio slices. Chunks without real speech return empty
+    # and are skipped, eliminating ghost subtitles and 15-second delays!
     # --------------------------------------------------------------------------
     try:
         import speech_recognition as sr_mod
@@ -1049,189 +963,146 @@ def analyze_custom_video_human_like(video_path, mode="keywords"):
         has_sr = False
 
     rec_shared = sr_mod.Recognizer() if has_sr else None
-    bg_transcripts = {}
 
+    # Slice video into natural conversational windows (~2.85s with 0.45s overlap)
+    step_s = 2.40
+    chunk_len = 2.85
+    asr_slices = []
+    curr_t = 0.0
+    while curr_t < effective_end:
+        end_t = min(effective_end, curr_t + chunk_len)
+        if end_t - curr_t >= 0.70:
+            asr_slices.append((round(curr_t, 2), round(end_t, 2)))
+        curr_t += step_s
+
+    raw_speech_chunks = []
     if has_sr and rec_shared is not None and len(pcm_asr_int16) > int(0.5 * sr_rate):
-        # 1. Primary Full-Audio Pass: Captures complete grammatical and acoustic context in 1 single fast call
-        full_transcript = ""
-        try:
-            full_aud = sr_mod.AudioData(pcm_asr_int16.tobytes(), sr_rate, 2)
-            full_transcript = clean_asr_text(rec_shared.recognize_google(full_aud, language="th-TH"))
-        except Exception:
-            full_transcript = ""
+        def recognize_slice_task(slice_info):
+            idx, s, e = slice_info
+            i1 = max(0, int(s * sr_rate))
+            i2 = min(len(pcm_asr_int16), int(e * sr_rate))
+            if i2 - i1 < int(0.35 * sr_rate):
+                return idx, s, e, ""
+            pcm_bytes = pcm_asr_int16[i1:i2].tobytes()
+            aud = sr_mod.AudioData(pcm_bytes, sr_rate, 2)
+            txt = ""
+            for attempt in range(2):
+                try:
+                    txt = rec_shared.recognize_google(aud, language="th-TH")
+                    if txt:
+                        break
+                except Exception:
+                    if attempt == 0:
+                        time.sleep(0.10)
+            return idx, s, e, clean_asr_text(txt)
 
-        # 2. Distribute full transcript across breath groups based on acoustic duration
-        if full_transcript and breath_groups:
-            all_tokens = tokenize_thai_smart(full_transcript)
-            bg_durs = [max(0.35, bg["end"] - bg["start"]) for bg in breath_groups]
-            total_bg_dur = sum(bg_durs)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futs = [pool.submit(recognize_slice_task, (i, s, e)) for i, (s, e) in enumerate(asr_slices)]
+            for f in as_completed(futs):
+                idx, s, e, txt = f.result()
+                if txt and len(txt.strip()) >= 2:
+                    raw_speech_chunks.append((idx, s, e, txt.strip()))
 
-            if total_bg_dur > 0 and all_tokens:
-                cum_durs = np.cumsum(bg_durs)
-                n_toks = len(all_tokens)
-                last_idx = 0
-                for bg_i, bg in enumerate(breath_groups):
-                    target_ratio = cum_durs[bg_i] / total_bg_dur
-                    target_tok_idx = int(round(target_ratio * n_toks))
-                    if bg_i == len(breath_groups) - 1:
-                        target_tok_idx = n_toks
-                    else:
-                        target_tok_idx = max(last_idx + 1, min(n_toks - (len(breath_groups) - 1 - bg_i), target_tok_idx))
-                    
-                    assigned_tokens = all_tokens[last_idx:target_tok_idx]
-                    bg_transcripts[bg_i] = clean_asr_text("".join(assigned_tokens))
-                    last_idx = target_tok_idx
+        raw_speech_chunks.sort(key=lambda x: x[0])
 
-        # 3. Fallback: If full audio returned empty (e.g. video > 60s or high background noise), transcribe slice by slice
-        if not full_transcript and breath_groups:
-            asr_tasks = []
-            for bg_idx, bg in enumerate(breath_groups):
-                asr_tasks.append(("bg", bg_idx, -1, max(0.0, bg["start"] - 0.14), min(total_dur, bg["end"] + 0.18)))
+    # --------------------------------------------------------------------------
+    # STEP 3: Sub-Frame Vocal Onset/Offset Refinement & Subtitle Synthesis
+    # --------------------------------------------------------------------------
+    raw_subtitles = []
+    for idx, s, e, txt in raw_speech_chunks:
+        f_s = max(0, min(n_frames - 1, int(s / 0.02)))
+        f_e = max(f_s + 1, min(n_frames, int(e / 0.02)))
+        local_rms = smooth_rms[f_s:f_e]
+        local_thr = max(0.015, float(np.percentile(local_rms, 25))) if len(local_rms) > 0 else 0.02
 
-            def run_asr_slice(task_tuple):
-                kind, bg_i, sw_i, t_s, t_e = task_tuple
-                idx1 = max(0, int(t_s * sr_rate))
-                idx2 = min(len(pcm_asr_int16), int(t_e * sr_rate))
-                if idx2 - idx1 < int(0.20 * sr_rate):
-                    return (kind, bg_i, sw_i, "")
-                pcm_bytes = pcm_asr_int16[idx1:idx2].tobytes()
-                txt = ""
-                for attempt in range(2):
-                    try:
-                        aud = sr_mod.AudioData(pcm_bytes, sr_rate, 2)
-                        txt = rec_shared.recognize_google(aud, language="th-TH")
-                        if txt: break
-                    except Exception:
-                        if attempt == 0: time.sleep(0.12)
-                return (kind, bg_i, sw_i, clean_asr_text(txt))
+        while f_s < f_e - 3 and smooth_rms[f_s] < local_thr:
+            f_s += 1
+        while f_e > f_s + 3 and smooth_rms[f_e - 1] < local_thr:
+            f_e -= 1
 
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                futs = [pool.submit(run_asr_slice, t) for t in asr_tasks]
-                for f in as_completed(futs):
-                    kind, bg_i, sw_i, txt = f.result()
-                    bg_transcripts[bg_i] = txt
+        exact_s = round(max(0.0, f_s * 0.02), 2)
+        exact_e = round(min(effective_end, f_e * 0.02), 2)
+        if exact_e - exact_s < 0.60:
+            exact_e = round(min(effective_end, exact_s + 0.85), 2)
 
-    # Align unbroken Breath-Group tokens onto exact 20ms Sub-Windows
-    raw_aligned = []
-    for bg_idx, bg in enumerate(breath_groups):
-        bg_txt = bg_transcripts.get(bg_idx, "")
-        sw_list = bg["sub_wins"]
-        aligned = align_breath_group_tokens_to_subwindows(bg_txt, sw_list, [])
-        raw_aligned.extend(aligned)
-
-    # Post-Alignment Fragment Merger: merge tiny 1-word/short fragments (< 0.90s or <= 6 chars) into neighbor
-    SUFFIX_FRAGMENTS = {"+", "++", "+++", "++++", "แล้ว", "เลย", "นะคะ", "นะครับ", "นะ", "อ่ะ", "ต่อ"}
-    aligned_utterances = []
-    idx_a = 0
-    while idx_a < len(raw_aligned):
-        u_s, u_e, u_rms, u_txt = raw_aligned[idx_a]
-        clean_u = u_txt.strip()
-        is_symbol_only = bool(re.match(r"^[\+\-\*\.]+$", clean_u.replace(" ", "")))
-        is_tiny = is_symbol_only or (u_e - u_s < 0.90 and len(clean_u) <= 10) or len(clean_u) <= 5
-        if (is_symbol_only or clean_u in SUFFIX_FRAGMENTS) and aligned_utterances:
-            prev_s, prev_e, prev_r, prev_t = aligned_utterances[-1]
-            if u_s - prev_e < 0.65:
-                if is_symbol_only and "PA" in prev_t and "PA++++" not in prev_t:
-                    prev_t = prev_t.replace("PA", "PA++++")
-                    aligned_utterances[-1] = (prev_s, u_e, max(prev_r, u_rms), prev_t.strip())
-                else:
-                    sep = "" if is_symbol_only else " "
-                    aligned_utterances[-1] = (prev_s, u_e, max(prev_r, u_rms), (prev_t + sep + clean_u).strip())
-                idx_a += 1
-                continue
-        if is_tiny and (idx_a + 1) < len(raw_aligned):
-            nxt_s, nxt_e, nxt_r, nxt_t = raw_aligned[idx_a + 1]
-            if nxt_s - u_e < 0.65:
-                raw_aligned[idx_a + 1] = (u_s, nxt_e, max(u_rms, nxt_r), (clean_u + " " + nxt_t).strip())
-                idx_a += 1
-                continue
-        if is_tiny and aligned_utterances:
-            prev_s, prev_e, prev_r, prev_t = aligned_utterances[-1]
-            if u_s - prev_e < 0.65:
-                aligned_utterances[-1] = (prev_s, u_e, max(prev_r, u_rms), (prev_t + " " + clean_u).strip())
-                idx_a += 1
-                continue
-        aligned_utterances.append((u_s, u_e, u_rms, clean_u))
-        idx_a += 1
-
-    # Post-ASR Real-Time Clause Splitter: split any > 2.05s multi-clause utterance at 20ms word valley
-    realtime_utterances = []
-    for u_s, u_e, u_rms, clean_u in aligned_utterances:
-        realtime_utterances.extend(
-            split_long_utterance_at_word_valley(u_s, u_e, u_rms, clean_u, smooth_rms, voiced, silence_thr)
-        )
-
-    # Build final Subtitles list with fullStart/fullEnd, kwStart/kwEnd, wordTimings, fullText, keywordText
-    subtitles = []
-    energies = [u[2] for u in realtime_utterances if u[3]]
-    high_energy_thr = float(np.percentile(energies, 62)) if energies else 0.05
-
-    for idx_u, (u_s, u_e, u_rms, u_txt) in enumerate(realtime_utterances):
-        if not u_txt:
-            continue
-        full_hi, kw_hi = extract_universal_keywords(u_txt)
+        full_hi, kw_hi = extract_universal_keywords(txt)
         if not full_hi:
             continue
 
+        voiced_full = (smooth_rms > local_thr)
         full_s, full_e, kw_s, kw_e, word_timings = compute_word_timings_and_kw_window(
-            u_s, u_e, full_hi, kw_hi, smooth_rms, voiced, silence_thr
+            exact_s, exact_e, full_hi, kw_hi, smooth_rms, voiced_full, local_thr
         )
-        # Prevent overlap with next utterance's start
-        if idx_u + 1 < len(realtime_utterances):
-            nxt_u_s = realtime_utterances[idx_u + 1][0]
-            if full_e > nxt_u_s - 0.02:
-                full_e = round(max(full_s + 0.25, nxt_u_s - 0.02), 2)
-            if kw_e > nxt_u_s - 0.02:
-                kw_e = round(max(kw_s + 0.25, nxt_u_s - 0.02), 2)
 
-        is_peak = (len(subtitles) == 0) or (u_rms >= high_energy_thr)
-        sub_zoom = 1.28 if is_peak else 1.20
         use_kw = (mode != "full")
-        subtitles.append({
-            "id": f"sub_{len(subtitles) + 1}",
-            "start": full_s,
-            "end": full_e,
-            "fullStart": full_s,
-            "fullEnd": full_e,
-            "kwStart": kw_s,
-            "kwEnd": kw_e,
+        raw_subtitles.append({
+            "id": f"sub_{len(raw_subtitles) + 1}",
+            "start": exact_s,
+            "end": exact_e,
+            "fullStart": exact_s,
+            "fullEnd": exact_e,
+            "kwStart": exact_s,
+            "kwEnd": exact_e,
             "fullText": full_hi,
             "keywordText": kw_hi,
             "text": kw_hi if use_kw else full_hi,
             "wordTimings": word_timings,
-            "subZoom": sub_zoom,
-            "_energy": u_rms
+            "subZoom": 1.28,
+            "_energy": float(np.max(local_rms)) if len(local_rms) > 0 else 0.05
         })
 
-    # Fallback only if video has zero spoken dialogue (music-only B-roll/OOTD clip)
+    # Sanitize Subtitle Boundaries (Deduplicate seam words & snap overlapping boundaries)
+    subtitles = []
+    for s_item in raw_subtitles:
+        if not subtitles:
+            subtitles.append(s_item)
+            continue
+        prev = subtitles[-1]
+        if s_item["start"] < prev["end"]:
+            mid_t = round((prev["end"] + s_item["start"]) / 2.0, 2)
+            if mid_t > prev["start"] + 0.40 and mid_t < s_item["end"] - 0.40:
+                prev["end"] = mid_t
+                prev["fullEnd"] = mid_t
+                prev["kwEnd"] = mid_t
+                s_item["start"] = mid_t
+                s_item["fullStart"] = mid_t
+                s_item["kwStart"] = mid_t
+            else:
+                s_item["start"] = prev["end"]
+                s_item["fullStart"] = prev["end"]
+                s_item["kwStart"] = prev["end"]
+
+        prev_words = prev["fullText"].replace("*", "").split()
+        curr_words = s_item["fullText"].replace("*", "").split()
+        if prev_words and curr_words and curr_words[0] == prev_words[-1] and len(curr_words) > 1:
+            clean_dedup = " ".join(curr_words[1:])
+            f_h, k_h = extract_universal_keywords(clean_dedup)
+            if f_h:
+                s_item["fullText"] = f_h
+                s_item["keywordText"] = k_h
+                s_item["text"] = k_h if (mode != "full") else f_h
+
+        subtitles.append(s_item)
+
+    # Fallback ONLY if the video has zero spoken dialogue (music-only B-roll)
     if len(subtitles) == 0:
-        fallback_hooks = [
-            ("*ลุคนี้ต้องตำ* ทรงสวยมาก", "ป้ายยา *ลุคสุดคิ้วท์* ทรงสวยพรางหุ่น"),
-            ("*ดีเทลเป๊ะ* แมทช์ง่ายสุดๆ", "ดีเทลสวย *แมทช์ง่าย* ใส่ได้ทุกวัน"),
-            ("*เนื้อผ้านิ่ม* ใส่สบายมาก", "เนื้อผ้าดี *ใส่สบาย* ไม่อึดอัดเลย"),
-            ("*น่ารักมาก* พิกัดในตะกร้า", "ใส่แล้ว *น่ารักมาก* พิกัดในตะกร้าเลย")
-        ]
-        t_step = max(2.8, effective_end / len(fallback_hooks))
-        for i, (kw_h, full_h) in enumerate(fallback_hooks):
-            st = round(i * t_step + 0.3, 2)
-            et = round(min(effective_end, (i + 1) * t_step), 2)
-            if et - st < 0.8:
-                break
-            subtitles.append({
-                "id": f"sub_{i + 1}",
-                "start": st,
-                "end": et,
-                "fullStart": st,
-                "fullEnd": et,
-                "kwStart": st,
-                "kwEnd": et,
-                "fullText": full_h,
-                "keywordText": kw_h,
-                "text": kw_h if mode != "full" else full_h,
-                "wordTimings": [],
-                "subZoom": 1.26,
-                "_energy": 0.05
-            })
+        default_hook = "*คลิปนี้ต้องดู* ป้ายยาของน่ารัก"
+        sub_end = round(min(effective_end, 3.5), 2)
+        subtitles.append({
+            "id": "sub_1",
+            "start": 0.50,
+            "end": sub_end,
+            "fullStart": 0.50,
+            "fullEnd": sub_end,
+            "kwStart": 0.50,
+            "kwEnd": sub_end,
+            "fullText": default_hook,
+            "keywordText": default_hook,
+            "text": default_hook,
+            "wordTimings": [],
+            "subZoom": 1.28,
+            "_energy": 0.05
+        })
 
     # --------------------------------------------------------------------------
     # STEP 4: Natural Continuous Scene Segments (100% Contiguous, Zero Chopped Words)
