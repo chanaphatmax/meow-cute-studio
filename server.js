@@ -420,7 +420,7 @@ print(json.dumps({'ok': True, 'sourcePath': rel_p, 'duration': max(0.2, dur), 'w
       '/icon-512.png',
       '/site.webmanifest'
     ]);
-    const isPublicDirectory = relPath.startsWith('/fonts/') || relPath.startsWith('/sfx/');
+    const isPublicDirectory = relPath.startsWith('/fonts/') || relPath.startsWith('/sfx/') || relPath.startsWith('/stickers/');
     if (!ALLOWED_ROOT_FILES.has(relPath) && !isPublicDirectory) {
       sessionSandbox.applySecurityHeaders(res);
       res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -478,6 +478,10 @@ print(json.dumps({'ok': True, 'sourcePath': rel_p, 'duration': max(0.2, dur), 'w
           ? 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0' 
           : 'public, max-age=86400'
       });
+      if (req.method === 'HEAD') {
+        res.end();
+        return;
+      }
       const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
       // If client requested ephemeral download with immediate zero-retention wipe

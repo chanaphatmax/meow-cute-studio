@@ -306,6 +306,7 @@
     if (!project.zooms) project.zooms = [];
     if (!project.sfx) project.sfx = [];
     if (!project.vfx) project.vfx = [];
+    if (!project.stickers) project.stickers = [];
 
     isViewingPreRenderedMp4 = false;
 
@@ -582,22 +583,30 @@
     });
   }
 
-  // --- LEFT TAB 3: EFFECTS MANAGER (SFX & VFX Add/Edit/Delete) ---
+  // --- LEFT TAB 3: EFFECTS MANAGER (SFX, VFX, STICKERS Add/Edit/Delete) ---
   function renderEffectsPanel() {
     effectsListContainer.innerHTML = '';
     if (!project) return;
 
     const sfxList = (project.sfx || []).map((s, i) => ({ _kind: 'sfx', _ref: s, time: s.time, idx: i }));
     const vfxList = (project.vfx || []).map((v, i) => ({ _kind: 'vfx', _ref: v, time: v.start, idx: i }));
-    const combined = [...sfxList, ...vfxList].sort((a, b) => a.time - b.time);
+    const stkList = (project.stickers || []).map((stk, i) => ({ _kind: 'stk', _ref: stk, time: stk.start, idx: i }));
+    const combined = [...sfxList, ...vfxList, ...stkList].sort((a, b) => a.time - b.time);
 
     if (combined.length === 0) {
-      effectsListContainer.innerHTML = '<div class="box-hint" style="padding:10px 4px;">ไม่มีเอฟเฟกต์ในคลิป กดปุ่มด้านบนเพื่อวางเอฟเฟกต์ตรงหัวอ่านได้ทันที</div>';
+      effectsListContainer.innerHTML = '<div class="box-hint" style="padding:10px 4px;">ไม่มีเอฟเฟกต์ในคลิป กดเลือกสติกเกอร์หรือเอฟเฟกต์ด้านบนเพื่อวางตรงหัวอ่านได้ทันที</div>';
       return;
     }
 
     const sfxNames = { pop: 'เสียงป๊อปเด้ง', sparkle: 'เสียงวิ้งวับ', shutter: 'เสียงชัตเตอร์', meow: 'เสียงเหมียว' };
-    const vfxNames = { warm_glow: 'เอฟเฟกต์ผิวใส', flash: 'แฟลชเปลี่ยนฉาก' };
+    const vfxNames = {
+      warm_glow: 'ออร่าผิวใส',
+      flash: 'แฟลชขาว',
+      cyber_glow: 'นีออนไซเบอร์',
+      vignette_dark: 'ขอบมืดโฟกัส',
+      heart_burst: 'หัวใจกระจาย',
+      sparkle_dust: 'ละอองดาววิ้ง'
+    };
 
     combined.forEach((item) => {
       const row = document.createElement('div');
@@ -632,6 +641,31 @@
           project.sfx = project.sfx.filter(x => x !== s);
           syncAllUI();
           showToast('ลบเอฟเฟกต์เสียงแล้ว');
+        });
+      } else if (item._kind === 'stk') {
+        const stk = item._ref;
+        row.innerHTML = `
+          <div class="seg-controls-row">
+            <div class="seg-title">
+              <span class="seg-badge" style="background:#ff5a96;color:#fff;">สติกเกอร์</span>
+              <img src="/stickers/${stk.type}.png" style="width:22px;height:22px;vertical-align:middle;margin:0 4px;" alt="${stk.type}">
+              <span>${stk.label || stk.type}</span>
+            </div>
+            <div class="seg-actions">
+              <span class="mono-num">${stk.start.toFixed(1)}s-${stk.end.toFixed(1)}s</span>
+              <button class="seg-btn-xs seg-btn-del btn-fx-del" title="ลบสติกเกอร์นี้">ลบ</button>
+            </div>
+          </div>
+        `;
+        row.addEventListener('click', () => {
+          sourceVideo.currentTime = stk.start + 0.05;
+        });
+        row.querySelector('.btn-fx-del').addEventListener('click', (e) => {
+          e.stopPropagation();
+          pushHistory();
+          project.stickers = (project.stickers || []).filter(x => x !== stk);
+          syncAllUI();
+          showToast(`ลบสติกเกอร์ "${stk.label || stk.type}" แล้ว`);
         });
       } else {
         const v = item._ref;
@@ -918,7 +952,7 @@
       laneSubtitles.appendChild(el);
     });
 
-    // Track 4: SFX & VFX
+    // Track 4: SFX, VFX & Stickers
     laneSfx.innerHTML = '';
     const sfxShort = { shutter: 'ชัตเตอร์', sparkle: 'วิ้ง', pop: 'ป๊อป', meow: 'เหมียว' };
     (project.sfx || []).forEach((ev) => {
@@ -937,6 +971,40 @@
           return;
         }
         triggerSfxSound(ev.type);
+      });
+      laneSfx.appendChild(el);
+    });
+
+    const stkEmojiMap = {
+      cat_paw: '🐾', cat_love: '😻', cat_surprise: '🙀', cat_wink: '😸',
+      dog_happy: '🐕', dog_cool: '🕶️', fire: '🔥', mind_blown: '🤯',
+      hundred: '💯', rocket: '🚀', sparkles: '✨', heart: '❤️',
+      star_struck: '🤩', party: '🎉', eyes: '👀', money: '🤑',
+      light_bulb: '💡', warning: '⚠️', skull: '💀', thumbs_up: '👍',
+      muscle: '💪', high_voltage: '⚡', chart_up: '📈', robot: '🤖', cool: '😎'
+    };
+    (project.stickers || []).forEach((stk) => {
+      const left = (stk.start / maxDur) * 100;
+      const width = Math.max(2.5, ((stk.end - stk.start) / maxDur) * 100);
+      const el = document.createElement('div');
+      el.className = 'tl-sfx-pin';
+      el.style.left = `${left}%`;
+      el.style.width = `${width}%`;
+      el.style.background = 'rgba(255, 90, 150, 0.28)';
+      el.style.borderColor = 'var(--accent-pink)';
+      el.style.borderRadius = '6px';
+      const icon = stkEmojiMap[stk.type] || '✨';
+      el.innerHTML = `<span>${icon} ${stk.label || stk.type}</span><span class="tl-del-x" title="ลบสติกเกอร์">×</span>`;
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (e.target.classList.contains('tl-del-x')) {
+          pushHistory();
+          project.stickers = (project.stickers || []).filter(item => item !== stk);
+          syncAllUI();
+          showToast(`ลบสติกเกอร์ "${stk.label || stk.type}" แล้ว`);
+          return;
+        }
+        sourceVideo.currentTime = stk.start + 0.02;
       });
       laneSfx.appendChild(el);
     });
@@ -1078,12 +1146,12 @@
         ctx.drawImage(sourceVideo, dx, dy, dw, dh);
       }
 
-      // Render Visual Effects (vfx: warm_glow, flash)
+      // Render Visual Effects (vfx: warm_glow, flash, cyber_glow, vignette_dark, heart_burst, sparkle_dust)
       (project.vfx || []).forEach(v => {
         if (curTime >= v.start && curTime <= v.end) {
           if (v.type === 'warm_glow') {
             ctx.save();
-            ctx.fillStyle = 'rgba(255, 195, 160, 0.10)';
+            ctx.fillStyle = 'rgba(255, 195, 160, 0.12)';
             ctx.fillRect(0, 0, cw, ch);
             ctx.restore();
           } else if (v.type === 'flash') {
@@ -1092,6 +1160,41 @@
             ctx.save();
             ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
             ctx.fillRect(0, 0, cw, ch);
+            ctx.restore();
+          } else if (v.type === 'cyber_glow') {
+            ctx.save();
+            ctx.fillStyle = 'rgba(77, 240, 255, 0.12)';
+            ctx.fillRect(0, 0, cw, ch);
+            ctx.restore();
+          } else if (v.type === 'vignette_dark') {
+            ctx.save();
+            const rg = ctx.createRadialGradient(cw / 2, ch / 2, cw * 0.35, cw / 2, ch / 2, cw * 0.75);
+            rg.addColorStop(0, 'rgba(0,0,0,0)');
+            rg.addColorStop(1, 'rgba(0,0,0,0.55)');
+            ctx.fillStyle = rg;
+            ctx.fillRect(0, 0, cw, ch);
+            ctx.restore();
+          } else if (v.type === 'heart_burst') {
+            const age = curTime - v.start;
+            ctx.save();
+            for (let i = 0; i < 6; i++) {
+              const hx = cw * (0.2 + 0.12 * i) + Math.sin(age * 3 + i) * 15;
+              const hy = ch * (0.8 - (age * 0.18 + i * 0.05) % 0.6);
+              const sz = 16 * (cw / 720);
+              ctx.fillStyle = i % 2 === 0 ? '#ff3366' : '#ff77aa';
+              ctx.beginPath();
+              ctx.arc(hx, hy, sz * 0.6, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          } else if (v.type === 'sparkle_dust') {
+            const age = curTime - v.start;
+            ctx.save();
+            for (let i = 0; i < 8; i++) {
+              const sx = cw * (0.15 + 0.10 * i) + Math.cos(age * 4 + i) * 20;
+              const sy = ch * (0.2 + (age * 0.22 + i * 0.08) % 0.6);
+              drawSparkleVector(ctx, sx, sy, 7 * (cw / 720), i % 2 === 0 ? '#ffe600' : '#ffffff');
+            }
             ctx.restore();
           }
         }
@@ -1189,9 +1292,57 @@
       if (curSub && curSub.text) {
         drawCanvasKineticSubtitle(ctx, cw, ch, curSub, curTime, project.style || {});
       }
+
+      // Kinetic Viral Stickers & Cute Mascot Reactions
+      (project.stickers || []).forEach(stk => {
+        if (curTime >= stk.start && curTime <= stk.end) {
+          drawCanvasSticker(ctx, cw, ch, stk, curTime);
+        }
+      });
     }
 
     requestAnimationFrame(renderFrameLoop);
+  }
+
+  const _stickerImgCache = {};
+  function getStickerImage(type) {
+    if (!_stickerImgCache[type]) {
+      const img = new Image();
+      img.src = `/stickers/${type}.png`;
+      _stickerImgCache[type] = img;
+    }
+    return _stickerImgCache[type];
+  }
+
+  function drawCanvasSticker(ctx, cw, ch, stk, curTime) {
+    const img = getStickerImage(stk.type);
+    if (!img.complete || img.naturalWidth === 0) return;
+
+    const age = curTime - stk.start;
+    let scale = (stk.scale || 1.0) * (cw / 720);
+    const anim = stk.animation || 'pop';
+
+    if (anim === 'pop' && age < 0.25) {
+      const p = age / 0.25;
+      const bounce = 0.5 + 0.6 * Math.sin(p * Math.PI * 0.85);
+      scale *= bounce;
+    } else if (anim === 'bounce') {
+      scale *= (1.0 + 0.08 * Math.sin(age * 8.0));
+    }
+
+    const w = 140 * scale;
+    const h = 140 * scale;
+    const cx = (stk.x !== undefined ? stk.x : 0.82) * cw;
+    const cy = (stk.y !== undefined ? stk.y : 0.32) * ch;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (anim === 'wiggle') {
+      const rot = (Math.sin(age * 12.0) * 8.0) * (Math.PI / 180);
+      ctx.rotate(rot);
+    }
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
   }
 
   function drawCanvasKineticSubtitle(c, cw, ch, sub, curTime, style) {
@@ -2202,8 +2353,9 @@
       pushHistory();
       project.sfx = [];
       project.vfx = [];
+      project.stickers = [];
       syncAllUI();
-      showToast('ลบเอฟเฟกต์ทั้งหมดออกแล้ว');
+      showToast('ลบเอฟเฟกต์ & สติกเกอร์ทั้งหมดออกแล้ว');
     });
 
     // Monitor Ratio & Framing
@@ -2265,6 +2417,51 @@
     document.getElementById('btnDeleteSelectedSeg').addEventListener('click', deleteSelectedSegment);
     document.getElementById('btnAddNewSubLine').addEventListener('click', addSubtitleAtPlayhead);
 
+    // Sticker Subtab Switching (Mascot / Viral / VFX)
+    document.querySelectorAll('[data-stk-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.stkTab;
+        document.querySelectorAll('[data-stk-tab]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.stk-pane').forEach(p => p.classList.remove('active'));
+        const pane = document.getElementById(
+          target === 'mascot' ? 'stkPaneMascot' :
+          target === 'viral' ? 'stkPaneViral' : 'stkPaneVfx'
+        );
+        if (pane) pane.classList.add('active');
+      });
+    });
+
+    // Sticker Stamp Buttons
+    document.querySelectorAll('[data-sticker]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!project) {
+          showToast('กรุณานำเข้าวิดีโอก่อนวางสติกเกอร์');
+          return;
+        }
+        const stkType = btn.dataset.sticker;
+        const stkLabel = btn.dataset.label || stkType;
+        const t = Number((sourceVideo.currentTime || 0).toFixed(2));
+        const dur = 2.20;
+        triggerSfxSound('pop');
+        pushHistory();
+        project.stickers = project.stickers || [];
+        project.stickers.push({
+          id: 'stk_' + Date.now(),
+          type: stkType,
+          label: stkLabel,
+          start: t,
+          end: Number(Math.min(getMaxSourceDuration(), t + dur).toFixed(2)),
+          x: 0.50,
+          y: 0.42,
+          scale: 1.0,
+          anim: 'pop_bounce'
+        });
+        syncAllUI();
+        showToast(`วางสติกเกอร์ ${stkLabel} ที่ ${t.toFixed(2)}s`);
+      });
+    });
+
     // SFX & VFX Buttons
     document.querySelectorAll('[data-sfx]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2283,24 +2480,36 @@
       });
     });
 
+    const VFX_CONFIGS = {
+      flash: { dur: 0.35, label: '⚡ แฟลชเปลี่ยนฉาก' },
+      warm_glow: { dur: 2.80, label: '🌸 อบอุ่น ผิวใส' },
+      cyber_glow: { dur: 2.80, label: '🌌 ไซเบอร์ โกลว์' },
+      vignette_dark: { dur: 3.00, label: '🎬 โรงหนัง ดึงดูดสายตา' },
+      heart_burst: { dur: 2.50, label: '💖 ละอองหัวใจ' },
+      sparkle_dust: { dur: 2.50, label: '✨ ฝุ่นดาวระยิบระยับ' }
+    };
+
     document.querySelectorAll('[data-vfx]').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (!project) return;
+        if (!project) {
+          showToast('กรุณานำเข้าวิดีโอก่อนใส่เอฟเฟกต์');
+          return;
+        }
         const vfxType = btn.dataset.vfx;
+        const cfg = VFX_CONFIGS[vfxType] || { dur: 2.5, label: 'เอฟเฟกต์ภาพ' };
         const t = Number((sourceVideo.currentTime || 0).toFixed(2));
-        const dur = vfxType === 'flash' ? 0.35 : 3.0;
         pushHistory();
         project.vfx = project.vfx || [];
         project.vfx.push({
           id: 'vfx_' + Date.now(),
           start: t,
-          end: Number(Math.min(getMaxSourceDuration(), t + dur).toFixed(2)),
+          end: Number(Math.min(getMaxSourceDuration(), t + cfg.dur).toFixed(2)),
           type: vfxType,
           intensity: 0.40,
-          label: vfxType === 'flash' ? 'แฟลชเปลี่ยนฉาก' : 'เอฟเฟกต์ผิวใส'
+          label: cfg.label
         });
         syncAllUI();
-        showToast(`วางเอฟเฟกต์ภาพที่ ${t.toFixed(2)}s`);
+        showToast(`วาง ${cfg.label} ที่ ${t.toFixed(2)}s`);
       });
     });
 
